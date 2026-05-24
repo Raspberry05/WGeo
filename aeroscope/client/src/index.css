@@ -1,0 +1,15 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #0d0d0f;
+  overflow: hidden;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: #111214; }
+::-webkit-scrollbar-thumb { background: #2a2c32; border-radius: 2px; }
