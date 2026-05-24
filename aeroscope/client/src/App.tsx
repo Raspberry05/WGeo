@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import { SceneRoot } from "./components/scene/SceneRoot";
+import { useEffect } from "react";
+import { CesiumScene } from "./components/scene/CesiumScene";
 import { HUD } from "./components/hud/HUD";
 import { startAircraftSystem } from "./systems/aircraftSystem";
 
@@ -26,7 +26,7 @@ export default function App() {
         background: "#020a0e",
       }}
     >
-      <SceneRoot />
+      <CesiumScene />
       <HUD />
     </div>
   );

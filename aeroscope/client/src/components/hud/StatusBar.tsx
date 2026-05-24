@@ -7,7 +7,7 @@ export function StatusBar() {
   // Replace STATUS_COLORS logic in StatusBar:
   const color =
     status === "LIVE"
-      ? "#e8eaf0"
+      ? "#00ff88"
       : status === "SIMULATED"
         ? "#888a94"
         : "#404248";

@@ -1,48 +1,44 @@
-import { fetchOpenSkyAircraft } from "./opensky";
-import { tickMockSimulation } from "../services/mockSimulation";
+import { fetchOpenSkyAircraft } from "../services/opensky";
 import { useAircraftStore } from "../store/useAircraftStore";
 import { setInterpolationTarget } from "./interpolationSystem";
 
-const API_INTERVAL = 5000; // 5 seconds (safe)
-const SIM_TICK = 2000; // 2 seconds visual tick
-
+const API_INTERVAL = 30000; // 30 seconds instead of 5
 
 export async function startAircraftSystem(): Promise<() => void> {
   useAircraftStore.getState().setConnectionStatus("CONNECTING");
 
-  const fetchReal = async (): Promise<boolean> => {
+  const fetchReal = async (): Promise<void> => {
     const current = useAircraftStore.getState().aircraft;
+
     try {
       const fresh = await fetchOpenSkyAircraft();
-      if (fresh.length === 0) throw new Error("Empty");
+
+      if (fresh.length === 0) {
+        console.warn("OpenSky returned 0 aircraft — retrying next interval");
+        useAircraftStore.getState().setConnectionStatus("CONNECTING");
+        return;
+      }
+
+      // Update store with real aircraft
       fresh.forEach((ac) => {
         setInterpolationTarget(current[ac.id], ac);
         useAircraftStore.getState().upsertAircraft(ac);
       });
+
       useAircraftStore.getState().setConnectionStatus("LIVE");
-      return true;
-    } catch {
-      return false;
+    } catch (err) {
+      console.error("OpenSky fetch failed:", err);
+      useAircraftStore.getState().setConnectionStatus("CONNECTING");
     }
   };
 
-  const runSimTick = () => {
-    const current = useAircraftStore.getState().aircraft;
-    tickMockSimulation().forEach((ac) => {
-      setInterpolationTarget(current[ac.id], ac);
-      useAircraftStore.getState().upsertAircraft(ac);
-    });
-    useAircraftStore.getState().setConnectionStatus("SIMULATED");
-  };
+  // Initial fetch
+  await fetchReal();
 
-  const gotReal = await fetchReal();
-  if (!gotReal) runSimTick();
-
+  // Poll every 5 seconds
   const apiTimer = setInterval(fetchReal, API_INTERVAL);
-  const simTimer = setInterval(runSimTick, SIM_TICK);
 
   return () => {
     clearInterval(apiTimer);
-    clearInterval(simTimer);
   };
 }

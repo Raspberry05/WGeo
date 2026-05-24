@@ -68,6 +68,7 @@ export function tickMockSimulation(): AircraftState[] {
       altitude: f.altitude,
       onGround: f.onGround,
       status,
+      aircraftType: "Unknown",
       lastUpdated: Date.now(),
     };
   });

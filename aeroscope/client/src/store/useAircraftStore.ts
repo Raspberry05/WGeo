@@ -15,6 +15,7 @@ export interface AircraftState {
   onGround: boolean;
   status: AircraftStatus;
   lastUpdated: number;
+  aircraftType: string;
 }
 
 interface AircraftStore {
