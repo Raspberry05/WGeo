@@ -32,10 +32,7 @@ Use `.env.local` locally (see `.env.example`).
    - `authError: "fetch failed"` → Vercel cannot reach the OpenSky auth host; add env `NODE_OPTIONS=--dns-result-order=ipv4first` (Production + Preview) and redeploy. The app will fall back to anonymous OpenSky when token fetch fails.
 6. Optional Vercel env: `NODE_OPTIONS` = `--dns-result-order=ipv4first`.
 7. **EU region (required):** OpenSky is in Europe; Vercel’s default is `iad1` (US). This repo sets **`vercel.json`** → `"regions": ["fra1"]` and `"functions": { "src/app/api/**/*.ts": { "regions": ["fra1"] } }`. **Redeploy** after merging. In `/api/health`, expect `vercelRegion: "fra1"` and `regionMismatch: false`. The Next.js `export const preferredRegion` on routes does **not** move Node.js functions — use `vercel.json` or **Vercel → Project → Settings → Functions → Function Region → Frankfurt**.
-8. **If `vercelRegion` is `fra1` but both hosts still timeout** (your current case): Vercel’s network often cannot reach OpenSky directly. Deploy **`aeroscope/opensky-proxy`** to [Railway](https://railway.app) (EU region), then on Vercel set:
-   - `OPENSKY_STATES_URL` = `https://<your-railway-app>/states`
-   - `OPENSKY_TOKEN_URL` = `https://<your-railway-app>/token`  
-   Redeploy Vercel. See **`opensky-proxy/README.md`** for steps. `/api/health` should show `usingProxy: true` and `authOk: true`.
+8. **If Vercel cannot reach OpenSky:** use a forward proxy. Open `GET <proxy>/diagnose` — if `opensky.states.ok` is **false** (20s timeout), Railway cannot reach OpenSky either; deploy **`opensky-proxy/cloudflare`** with Wrangler (see **`opensky-proxy/README.md`**). If diagnose succeeds, set `OPENSKY_STATES_URL` / `OPENSKY_TOKEN_URL` to that host’s `/states` and `/token`, redeploy Vercel, and confirm `/api/health` shows `authOk: true`.
 
 ## Build
 

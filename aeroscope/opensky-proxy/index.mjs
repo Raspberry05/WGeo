@@ -1,6 +1,7 @@
 /**
  * OpenSky forward proxy for Railway (EU). Vercel sets OPENSKY_STATES_URL / OPENSKY_TOKEN_URL.
  */
+import dns from "node:dns/promises";
 import http from "node:http";
 import { URL } from "node:url";
 import { httpsRequest } from "./httpsUpstream.mjs";
@@ -35,10 +36,24 @@ function readBody(req) {
   });
 }
 
+async function resolveOpenSkyIpv4() {
+  try {
+    const results = await dns.lookup("opensky-network.org", {
+      family: 4,
+      all: true,
+    });
+    const list = Array.isArray(results) ? results : [results];
+    return list.map((r) => r.address);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 async function probeUpstream() {
   const now = Date.now();
   if (now - lastProbe.at < PROBE_CACHE_MS) return lastProbe;
 
+  const dnsIpv4 = await resolveOpenSkyIpv4();
   const statesUrl = `${STATES_UPSTREAM}?lamin=0&lomin=0&lamax=1&lomax=1`;
   const statesStart = Date.now();
   try {
@@ -85,6 +100,7 @@ async function probeUpstream() {
   }
 
   lastProbe.at = Date.now();
+  lastProbe.dnsIpv4 = dnsIpv4;
   return lastProbe;
 }
 
@@ -213,6 +229,9 @@ const server = http.createServer(async (req, res) => {
 
     if (url.pathname === "/diagnose") {
       const probe = await probeUpstream();
+      const unreachable =
+        !probe.states.ok &&
+        probe.states.error?.includes("timeout");
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({
@@ -222,6 +241,14 @@ const server = http.createServer(async (req, res) => {
           cacheEntries: statesCache.size,
           inflight: statesInflight.size,
           opensky: probe,
+          nextSteps: unreachable
+            ? [
+                "Railway cannot reach OpenSky (outbound block or wrong region).",
+                "Deploy cloudflare/worker.js via Wrangler (recommended) — see opensky-proxy/README.md.",
+                "Or try Fly.io / Render in EU, or a small VPS.",
+                "Set Vercel OPENSKY_STATES_URL and OPENSKY_TOKEN_URL to the working proxy base + /states and /token.",
+              ]
+            : [],
         }),
       );
       return;
