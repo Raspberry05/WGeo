@@ -45,7 +45,13 @@ export async function fetchOpenSkyAircraft(
 ): Promise<AircraftState[]> {
   const res = await fetch(`/api/opensky?${boundsToQuery(airport.bounds)}`);
 
-  if (!res.ok) throw new Error(`Proxy error: ${res.status}`);
+  if (!res.ok) {
+    if (res.status === 502 || res.status === 503 || res.status === 504) {
+      console.warn(`OpenSky proxy unavailable (${res.status})`);
+      return [];
+    }
+    throw new Error(`Proxy error: ${res.status}`);
+  }
 
   const data = (await res.json()) as {
     states?: unknown[] | null;

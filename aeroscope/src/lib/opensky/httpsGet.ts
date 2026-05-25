@@ -1,6 +1,11 @@
-import https from "node:https";
-
-export function httpsRequest(
+/**
+ * HTTPS helper for OpenSky server routes.
+ * Uses native fetch (not node:https) so Next.js does not bundle CJS require()
+ * into ESM output when package.json has "type": "module".
+ *
+ * Prefer NODE_OPTIONS=--dns-result-order=ipv4first on Vercel if IPv6 to OpenSky fails.
+ */
+export async function httpsRequest(
   url: string,
   options: {
     method?: string;
@@ -9,47 +14,18 @@ export function httpsRequest(
     timeoutMs?: number;
   } = {},
 ): Promise<{ status: number; text: string }> {
-  const { method = "GET", headers = {}, body, timeoutMs = 25_000 } = options;
+  const { method = "GET", headers = {}, body, timeoutMs = 10_000 } = options;
 
-  return new Promise((resolve, reject) => {
-    const parsed = new URL(url);
-    const reqHeaders = { ...headers };
-    if (body) {
-      reqHeaders["Content-Length"] = String(Buffer.byteLength(body));
-    }
-
-    const req = https.request(
-      {
-        hostname: parsed.hostname,
-        port: parsed.port || 443,
-        path: `${parsed.pathname}${parsed.search}`,
-        method,
-        family: 4,
-        headers: reqHeaders,
-        timeout: timeoutMs,
-      },
-      (res) => {
-        const chunks: Buffer[] = [];
-        res.on("data", (chunk: Buffer) => chunks.push(chunk));
-        res.on("end", () => {
-          resolve({
-            status: res.statusCode ?? 0,
-            text: Buffer.concat(chunks).toString("utf8"),
-          });
-        });
-      },
-    );
-
-    req.on("timeout", () => {
-      req.destroy();
-      reject(
-        new Error(
-          `HTTPS ${method} ${parsed.hostname} timed out after ${timeoutMs}ms`,
-        ),
-      );
-    });
-    req.on("error", reject);
-    if (body) req.write(body);
-    req.end();
+  const response = await fetch(url, {
+    method,
+    headers,
+    body,
+    signal: AbortSignal.timeout(timeoutMs),
+    cache: "no-store",
   });
+
+  return {
+    status: response.status,
+    text: await response.text(),
+  };
 }

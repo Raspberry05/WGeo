@@ -1,11 +1,11 @@
 import { formatNetworkError } from "./networkError";
 import { httpsRequest } from "./httpsGet";
+import { OPENSKY_PROBE_TIMEOUT_MS, OPENSKY_TOKEN_TIMEOUT_MS } from "./timeouts";
 
 const TOKEN_URL =
   process.env.OPENSKY_TOKEN_URL?.trim() ||
   "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token";
 const TOKEN_REFRESH_MARGIN = 30;
-const TOKEN_TIMEOUT_MS = 25_000;
 
 type TokenCache = {
   token: string;
@@ -48,52 +48,23 @@ async function requestToken(
     client_secret: clientSecret,
   }).toString();
 
-  let lastError: unknown;
+  const result = await httpsRequest(TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+    timeoutMs: OPENSKY_TOKEN_TIMEOUT_MS,
+  });
 
-  for (const via of ["https-ipv4", "fetch"] as const) {
-    try {
-      let result: { status: number; text: string };
-
-      if (via === "https-ipv4") {
-        result = await httpsRequest(TOKEN_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body,
-          timeoutMs: TOKEN_TIMEOUT_MS,
-        });
-      } else {
-        const response = await fetch(TOKEN_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body,
-          signal: AbortSignal.timeout(TOKEN_TIMEOUT_MS),
-          cache: "no-store",
-        });
-        result = { status: response.status, text: await response.text() };
-      }
-
-      if (result.status < 200 || result.status >= 300) {
-        throw new Error(
-          `OpenSky token refresh failed: ${result.status} ${result.text.slice(0, 300)}`,
-        );
-      }
-
-      return JSON.parse(result.text) as {
-        access_token: string;
-        expires_in?: number;
-      };
-    } catch (err) {
-      lastError = err;
-      console.warn(
-        `[Aeroscope] OpenSky token via ${via} failed:`,
-        formatNetworkError(err),
-      );
-    }
+  if (result.status < 200 || result.status >= 300) {
+    throw new Error(
+      `OpenSky token refresh failed: ${result.status} ${result.text.slice(0, 300)}`,
+    );
   }
 
-  throw lastError instanceof Error
-    ? lastError
-    : new Error(formatNetworkError(lastError));
+  return JSON.parse(result.text) as {
+    access_token: string;
+    expires_in?: number;
+  };
 }
 
 export async function getOpenSkyAuthHeaders(): Promise<Record<string, string>> {
@@ -122,7 +93,7 @@ async function probeHostHttps(
   try {
     const result = await httpsRequest(url, {
       method: "GET",
-      timeoutMs: 20_000,
+      timeoutMs: OPENSKY_PROBE_TIMEOUT_MS,
     });
     return { ok: true, status: result.status };
   } catch (err) {
