@@ -1,5 +1,4 @@
 import { useRef } from "react";
-import "cesium/Build/Cesium/Widgets/widgets.css";
 import { useCesiumViewerInit } from "../../hooks/useCesiumViewerInit";
 
 export function CesiumViewer() {

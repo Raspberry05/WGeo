@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdirSync } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -25,4 +25,12 @@ for (const folder of folders) {
   }
   cpSync(from, to, { recursive: true });
   console.log(`[copy-cesium] ${folder} → public/cesium/${folder}`);
+}
+
+const cesiumJs = path.join(cesiumBuild, "Cesium.js");
+if (existsSync(cesiumJs)) {
+  copyFileSync(cesiumJs, path.join(publicCesium, "Cesium.js"));
+  console.log("[copy-cesium] Cesium.js → public/cesium/Cesium.js");
+} else {
+  console.warn("[copy-cesium] Cesium.js not found — globe may fail to load.");
 }

@@ -8,7 +8,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   serverExternalPackages: ["cesium"],
-  transpilePackages: ["resium"],
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.plugins.push(
@@ -16,12 +15,26 @@ const nextConfig: NextConfig = {
           CESIUM_BASE_URL: JSON.stringify("/cesium"),
         }),
       );
-    }
 
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      cesium: path.resolve(__dirname, "node_modules/cesium"),
-    };
+      const prevExternals = config.externals;
+      config.externals = [
+        ...(Array.isArray(prevExternals)
+          ? prevExternals
+          : prevExternals
+            ? [prevExternals]
+            : []),
+        (
+          ctx: { request?: string },
+          callback: (err?: Error | null, result?: string) => void,
+        ) => {
+          if (ctx.request === "cesium") {
+            callback(null, "root Cesium");
+            return;
+          }
+          callback();
+        },
+      ];
+    }
 
     return config;
   },
