@@ -14,6 +14,8 @@
 | `OPENSKY_CLIENT_ID` | Server | OpenSky OAuth client ID |
 | `OPENSKY_CLIENT_SECRET` | Server | OpenSky OAuth client secret |
 | `NEXT_PUBLIC_CESIUM_ION_TOKEN` | Client | [Cesium Ion](https://ion.cesium.com/) token |
+| `CORS_ALLOWED_ORIGINS` | Server (optional) | Comma-separated extra origins allowed to call `/api/*` (e.g. `https://my-domain.com`) |
+| `NEXT_PUBLIC_APP_URL` | Client (optional) | Canonical site URL — also added to CORS allow list |
 
 Use `.env.local` locally (see `.env.example`).
 
@@ -35,6 +37,15 @@ Use `.env.local` locally (see `.env.example`).
 - **Install:** `npm install` (runs `postinstall` → copies Cesium to `public/cesium`)
 - **Build:** `npm run build`
 - **Dev:** `npm run dev` → http://localhost:3000
+
+## CORS
+
+The browser loads the app and calls **`/api/opensky` on the same Vercel host** — that does not require CORS. CORS headers are enabled on `/api/*` for:
+
+- Preview vs production domains you list in `CORS_ALLOWED_ORIGINS`
+- A separate frontend calling your Vercel API
+
+CORS does **not** fix server-side `CONNECT_TIMEOUT` to OpenSky (that is Vercel → OpenSky network, not the browser).
 
 ## API routes
 

@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+import { applyCors, handleCorsPreflight } from "@/lib/apiCors";
 import { getStatesCacheSize } from "@/lib/opensky/states";
 import {
   isOpenSkyConfigured,
@@ -15,10 +16,16 @@ export const dynamic = "force-dynamic";
 export const preferredRegion = OPENSKY_API_REGIONS;
 export const maxDuration = OPENSKY_API_MAX_DURATION;
 
-export async function GET() {
+export async function OPTIONS(request: NextRequest) {
+  return handleCorsPreflight(request) ?? new Response(null, { status: 204 });
+}
+
+export async function GET(request: NextRequest) {
   const auth = await probeOpenSkyAuth();
 
-  return NextResponse.json({
+  return applyCors(
+    request,
+    NextResponse.json({
     status: "online",
     endpoint: "/api/opensky?lamin=&lomin=&lamax=&lomax=",
     cachedRegions: getStatesCacheSize(),
@@ -37,5 +44,6 @@ export async function GET() {
       apiHostStatus: auth.apiHostProbe.status ?? null,
       apiHostError: auth.apiHostProbe.error ?? null,
     },
-  });
+    }),
+  );
 }

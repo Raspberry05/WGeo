@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { applyCors, handleCorsPreflight } from "@/lib/apiCors";
 import { fetchAircraftEnrichment, isValidIcao24 } from "@/lib/opensky/enrich";
 import {
   OPENSKY_API_MAX_DURATION,
@@ -12,16 +13,23 @@ export const maxDuration = OPENSKY_API_MAX_DURATION;
 
 type RouteContext = { params: Promise<{ icao24: string }> };
 
-export async function GET(_request: NextRequest, context: RouteContext) {
+export async function OPTIONS(request: NextRequest) {
+  return handleCorsPreflight(request) ?? new Response(null, { status: 204 });
+}
+
+export async function GET(request: NextRequest, context: RouteContext) {
   const { icao24 } = await context.params;
   const normalized = String(icao24 ?? "")
     .toLowerCase()
     .trim();
 
   if (!isValidIcao24(normalized)) {
-    return NextResponse.json({ error: "Invalid icao24" }, { status: 400 });
+    return applyCors(
+      request,
+      NextResponse.json({ error: "Invalid icao24" }, { status: 400 }),
+    );
   }
 
   const data = await fetchAircraftEnrichment(normalized);
-  return NextResponse.json(data);
+  return applyCors(request, NextResponse.json(data));
 }
