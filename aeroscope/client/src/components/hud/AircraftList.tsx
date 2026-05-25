@@ -11,6 +11,7 @@ export function AircraftList() {
   const aircraft = useAircraftStore((s) => s.aircraft);
   const selectedId = useAircraftStore((s) => s.selectedId);
   const selectAircraft = useAircraftStore((s) => s.selectAircraft);
+  const requestCameraFly = useAircraftStore((s) => s.requestCameraFly);
 
   const list = Object.values(aircraft).sort((a, b) => b.altitude - a.altitude);
 
@@ -18,10 +19,11 @@ export function AircraftList() {
     <div
       style={{
         position: "absolute",
-        top: "44px",
+        top: "368px",
         left: "8px",
         width: "200px",
-        maxHeight: "calc(100vh - 200px)",
+        maxHeight: "calc(100vh - 520px)",
+        minHeight: "120px",
         overflowY: "auto",
         background: "rgba(0,8,16,0.88)",
         border: "1px solid #1a3a2a",
@@ -50,7 +52,14 @@ export function AircraftList() {
         return (
           <div
             key={ac.id}
-            onClick={() => selectAircraft(isSelected ? null : ac.id)}
+            onClick={() => {
+              if (isSelected) {
+                selectAircraft(null);
+              } else {
+                selectAircraft(ac.id);
+                requestCameraFly("aircraft", ac.id);
+              }
+            }}
             style={{
               padding: "5px 10px",
               borderBottom: "1px solid #0d1f10",

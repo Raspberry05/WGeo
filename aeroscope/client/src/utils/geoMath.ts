@@ -1,30 +1,71 @@
-// ATL center coordinates
+import { getAirport } from "../data/airports";
+
 export const ATL_CENTER = {
   lat: 33.6407,
   lon: -84.4277,
 };
 
-// Scale: 1 scene unit ≈ 100 meters
-const SCALE = 0.0009; // degrees per unit
+const SCALE = 0.0009;
+const GROUND_CLAMP_HEIGHT_M = 4;
+
+export interface GeoBounds {
+  lamin: number;
+  lomin: number;
+  lamax: number;
+  lomax: number;
+}
+
+export function boundsFromCenter(
+  lat: number,
+  lon: number,
+  radiusKm: number,
+): GeoBounds {
+  const latDelta = radiusKm / 111.32;
+  const lonDelta = radiusKm / (111.32 * Math.cos((lat * Math.PI) / 180));
+  return {
+    lamin: lat - latDelta,
+    lamax: lat + latDelta,
+    lomin: lon - lonDelta,
+    lomax: lon + lonDelta,
+  };
+}
+
+export function haversineKm(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 export function geoToScene(
   lat: number,
   lon: number,
   altitude: number = 0,
+  centerLat: number = ATL_CENTER.lat,
+  centerLon: number = ATL_CENTER.lon,
 ): [number, number, number] {
-  const x = (lon - ATL_CENTER.lon) / SCALE;
-  const z = -(lat - ATL_CENTER.lat) / SCALE;
+  const x = (lon - centerLon) / SCALE;
+  const z = -(lat - centerLat) / SCALE;
   const y = altitude * 0.003;
   return [x, y, z];
 }
 
-/** OpenSky barometric altitude is reported in feet. */
 export function feetToMeters(feet: number): number {
   return feet * 0.3048;
 }
 
 export function altitudeToMeters(altitudeFeet: number, onGround: boolean): number {
-  if (onGround) return 2;
+  if (onGround) return GROUND_CLAMP_HEIGHT_M;
   return Math.max(feetToMeters(altitudeFeet), 50);
 }
 
@@ -62,4 +103,18 @@ export function lerpAngle(a: number, b: number, t: number): number {
   if (diff > Math.PI) diff -= Math.PI * 2;
   if (diff < -Math.PI) diff += Math.PI * 2;
   return a + diff * t;
+}
+
+export function airportHighlightRadiusDeg(radiusKm: number): number {
+  return radiusKm / 111.32;
+}
+
+export function geoToSceneForAirport(
+  lat: number,
+  lon: number,
+  altitude: number,
+  airportId: string,
+): [number, number, number] {
+  const airport = getAirport(airportId);
+  return geoToScene(lat, lon, altitude, airport.lat, airport.lon);
 }

@@ -6,11 +6,13 @@ import {
   Cartesian3,
   Color,
   HeadingPitchRoll,
+  HeightReference,
   LabelStyle,
   Transforms,
   VerticalOrigin,
 } from "cesium";
 import { Entity } from "resium";
+import { getAircraftModelConfig } from "../../config/aircraftModels";
 import type { AircraftState } from "../../store/useAircraftStore";
 import { useAircraftStore } from "../../store/useAircraftStore";
 import { getInterpolatedGeoState } from "../../systems/interpolationSystem";
@@ -29,8 +31,10 @@ const STATUS_COLORS: Record<string, string> = {
 export function AircraftEntity({ aircraft }: Props) {
   const selectedId = useAircraftStore((s) => s.selectedId);
   const selectAircraft = useAircraftStore((s) => s.selectAircraft);
+  const requestCameraFly = useAircraftStore((s) => s.requestCameraFly);
   const isSelected = selectedId === aircraft.id;
   const color = STATUS_COLORS[aircraft.status] ?? "#ffffff";
+  const modelConfig = getAircraftModelConfig(aircraft.categoryCode);
 
   const position = useMemo(
     () =>
@@ -50,9 +54,11 @@ export function AircraftEntity({ aircraft }: Props) {
         if (!ac) return undefined;
         const geo = getInterpolatedGeoState(ac);
         const pos = Cartesian3.fromDegrees(geo.lon, geo.lat, geo.altMeters);
+        const pitch = geo.clampToGround ? 0 : -0.08;
         return Transforms.headingPitchRollQuaternion(
           pos,
-          new HeadingPitchRoll(geo.headingRad, 0, 0),
+          new HeadingPitchRoll(geo.headingRad, pitch, 0),
+          undefined,
           undefined,
           result,
         );
@@ -60,7 +66,11 @@ export function AircraftEntity({ aircraft }: Props) {
     [aircraft.id],
   );
 
-  const pixelSize = aircraft.onGround ? 10 : 14;
+  const heightRef = aircraft.onGround
+    ? HeightReference.CLAMP_TO_GROUND
+    : HeightReference.NONE;
+
+  const modelScale = modelConfig.scale * (aircraft.onGround ? 0.85 : 1);
 
   return (
     <Entity
@@ -68,13 +78,25 @@ export function AircraftEntity({ aircraft }: Props) {
       name={aircraft.callsign}
       position={position}
       orientation={orientation}
-      onClick={() => selectAircraft(isSelected ? null : aircraft.id)}
-      point={{
-        pixelSize: isSelected ? pixelSize + 4 : pixelSize,
+      heightReference={heightRef}
+      onClick={() => {
+        if (isSelected) {
+          selectAircraft(null);
+        } else {
+          selectAircraft(aircraft.id);
+          requestCameraFly("aircraft", aircraft.id);
+        }
+      }}
+      model={{
+        uri: modelConfig.uri,
+        scale: modelScale,
+        minimumPixelSize: modelConfig.minimumPixelSize,
+        heightReference: heightRef,
         color: Color.fromCssColorString(color),
-        outlineColor: Color.WHITE,
-        outlineWidth: isSelected ? 2 : 1,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        silhouetteColor: Color.fromCssColorString(color),
+        silhouetteSize: isSelected ? 2.5 : 1.2,
+        colorBlendMode: 0,
+        colorBlendAmount: isSelected ? 0.35 : 0.15,
       }}
       label={{
         text: aircraft.callsign,
@@ -84,10 +106,11 @@ export function AircraftEntity({ aircraft }: Props) {
         outlineWidth: 2,
         style: LabelStyle.FILL,
         verticalOrigin: VerticalOrigin.BOTTOM,
-        pixelOffset: new Cartesian2(0, -18),
+        pixelOffset: new Cartesian2(0, -22),
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
         showBackground: true,
         backgroundColor: Color.fromCssColorString("rgba(0,0,0,0.65)"),
+        heightReference: heightRef,
       }}
     />
   );

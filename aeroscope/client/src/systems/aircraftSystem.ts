@@ -1,17 +1,20 @@
+import { getAirport } from "../data/airports";
 import { fetchOpenSkyAircraft } from "../services/opensky";
 import { useAircraftStore } from "../store/useAircraftStore";
 import { setInterpolationTarget } from "./interpolationSystem";
 
-const API_INTERVAL = 30000; // 30 seconds instead of 5
+const API_INTERVAL = 30000;
 
 export async function startAircraftSystem(): Promise<() => void> {
   useAircraftStore.getState().setConnectionStatus("CONNECTING");
 
   const fetchReal = async (): Promise<void> => {
-    const current = useAircraftStore.getState().aircraft;
+    const state = useAircraftStore.getState();
+    const airport = getAirport(state.activeAirportId);
+    const current = state.aircraft;
 
     try {
-      const fresh = await fetchOpenSkyAircraft();
+      const fresh = await fetchOpenSkyAircraft(airport);
 
       if (fresh.length === 0) {
         console.warn("OpenSky returned 0 aircraft — retrying next interval");
@@ -19,12 +22,13 @@ export async function startAircraftSystem(): Promise<() => void> {
         return;
       }
 
-      // Update store with real aircraft
+      const next: Record<string, (typeof fresh)[0]> = {};
       fresh.forEach((ac) => {
         setInterpolationTarget(current[ac.id], ac);
-        useAircraftStore.getState().upsertAircraft(ac);
+        next[ac.id] = ac;
       });
 
+      useAircraftStore.getState().setAircraft(next);
       useAircraftStore.getState().setConnectionStatus("LIVE");
     } catch (err) {
       console.error("OpenSky fetch failed:", err);
@@ -32,13 +36,18 @@ export async function startAircraftSystem(): Promise<() => void> {
     }
   };
 
-  // Initial fetch
   await fetchReal();
 
-  // Poll every 5 seconds
   const apiTimer = setInterval(fetchReal, API_INTERVAL);
+
+  const unsub = useAircraftStore.subscribe((state, prev) => {
+    if (state.airportChangeToken !== prev.airportChangeToken) {
+      void fetchReal();
+    }
+  });
 
   return () => {
     clearInterval(apiTimer);
+    unsub();
   };
 }

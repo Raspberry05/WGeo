@@ -14,13 +14,45 @@ const CLIENT_ID = process.env.OPENSKY_CLIENT_ID;
 const CLIENT_SECRET = process.env.OPENSKY_CLIENT_SECRET;
 
 const AIRCRAFT_URL = "https://opensky-network.org/api/states/all";
-const BOUNDS = "?lamin=32.5&lomin=-85.8&lamax=34.8&lomax=-83.2";
 
 const CACHE_TTL = 10000; // 10 seconds
 const TOKEN_REFRESH_MARGIN = 30; // seconds before expiry to refresh
 
-let cache = null;
-let lastFetch = 0;
+/** @type {Map<string, { data: object, lastFetch: number }>} */
+const cacheByBounds = new Map();
+
+function parseBounds(query) {
+  const lamin = parseFloat(query.lamin);
+  const lomin = parseFloat(query.lomin);
+  const lamax = parseFloat(query.lamax);
+  const lomax = parseFloat(query.lomax);
+
+  if (
+    [lamin, lomin, lamax, lomax].some((v) => Number.isNaN(v)) ||
+    lamin < -90 ||
+    lamin > 90 ||
+    lamax < -90 ||
+    lamax > 90 ||
+    lomin < -180 ||
+    lomin > 180 ||
+    lomax < -180 ||
+    lomax > 180 ||
+    lamin >= lamax ||
+    lomin >= lomax
+  ) {
+    return null;
+  }
+
+  return { lamin, lomin, lamax, lomax };
+}
+
+function boundsKey(bounds) {
+  return `${bounds.lamin},${bounds.lomin},${bounds.lamax},${bounds.lomax}`;
+}
+
+function boundsQuery(bounds) {
+  return `?lamin=${bounds.lamin}&lomin=${bounds.lomin}&lamax=${bounds.lamax}&lomax=${bounds.lomax}`;
+}
 
 // Token manager
 class TokenManager {
@@ -92,28 +124,36 @@ if (!CLIENT_ID || !CLIENT_SECRET) {
 }
 
 app.get("/api/opensky", async (req, res) => {
+  const bounds = parseBounds(req.query);
+  if (!bounds) {
+    return res.status(400).json({
+      error: "Invalid or missing bounds. Required: lamin, lomin, lamax, lomax",
+    });
+  }
+
+  const key = boundsKey(bounds);
+
   try {
     const now = Date.now();
+    const cached = cacheByBounds.get(key);
 
-    if (cache && now - lastFetch < CACHE_TTL) {
-      console.log("📦 Returning cached data");
-      return res.json(cache);
+    if (cached && now - cached.lastFetch < CACHE_TTL) {
+      console.log(`📦 Returning cached data for ${key}`);
+      return res.json(cached.data);
     }
 
-    console.log("🌐 Fetching fresh data from OpenSky...");
+    console.log(`🌐 Fetching OpenSky for ${key}...`);
 
-    // Get valid token and fetch data
     const headers = await tokenManager.headers();
-    const response = await axios.get(AIRCRAFT_URL + BOUNDS, {
+    const response = await axios.get(AIRCRAFT_URL + boundsQuery(bounds), {
       headers,
       timeout: 25000,
     });
 
-    cache = response.data;
-    lastFetch = now;
+    cacheByBounds.set(key, { data: response.data, lastFetch: now });
 
     console.log(`✓ Fetched ${response.data.states?.length || 0} aircraft`);
-    return res.json(cache);
+    return res.json(response.data);
   } catch (err) {
     console.error("❌ OpenSky error:", {
       status: err.response?.status,
@@ -121,10 +161,10 @@ app.get("/api/opensky", async (req, res) => {
       data: err.response?.data,
     });
 
-    // Return stale cache if available
-    if (cache) {
+    const cached = cacheByBounds.get(key);
+    if (cached) {
       console.log("⚠ Returning stale cache");
-      return res.json(cache);
+      return res.json(cached.data);
     }
 
     return res.json({ states: [] });
@@ -134,9 +174,8 @@ app.get("/api/opensky", async (req, res) => {
 app.get("/", (req, res) => {
   res.json({
     status: "online",
-    endpoint: "/api/opensky",
-    cached: cache !== null,
-    cacheAge: cache ? Math.floor((Date.now() - lastFetch) / 1000) : null,
+    endpoint: "/api/opensky?lamin=&lomin=&lamax=&lomax=",
+    cachedRegions: cacheByBounds.size,
     tokenValid:
       tokenManager.token !== null && Date.now() < tokenManager.expiresAt,
   });

@@ -48,13 +48,13 @@ export function AircraftInspector() {
         bottom: "16px",
         left: "8px",
         width: "200px",
+        zIndex: 101,
         background: "rgba(0,8,16,0.92)",
         border: `1px solid ${color}44`,
         borderTop: `2px solid ${color}`,
         borderRadius: "4px",
         padding: "10px",
         fontFamily: "monospace",
-        zIndex: 100,
       }}
     >
       {/* Header */}

@@ -1,15 +1,10 @@
-import { Cartesian3, Color } from "cesium";
-import {
-  Viewer,
-  Globe,
-  BlackAndWhiteStage,
-  CameraFlyTo,
-} from "resium";
+import { Viewer, Globe } from "resium";
 import { useAircraftStore } from "../../store/useAircraftStore";
 import { AircraftEntity } from "../aircraft/AircraftEntity";
 import { CesiumCameraController } from "../camera/CesiumCameraController";
+import { SpaceFreeCamera } from "../camera/SpaceFreeCamera";
+import { AirportMarkers } from "./AirportMarkers";
 import { MonochromeWorld } from "./MonochromeWorld";
-import { ATL_CENTER } from "../../utils/geoMath";
 
 export function CesiumScene() {
   const aircraft = useAircraftStore((s) => s.aircraft);
@@ -30,33 +25,20 @@ export function CesiumScene() {
       scene3DOnly
     >
       <Globe
-        baseColor={Color.fromCssColorString("#111214")}
         enableLighting={false}
         showGroundAtmosphere={false}
+        showWaterEffect={false}
       />
 
       <MonochromeWorld />
-      <BlackAndWhiteStage gradations={4} />
+      <AirportMarkers />
 
       {Object.values(aircraft).map((ac) => (
         <AircraftEntity key={ac.id} aircraft={ac} />
       ))}
 
       <CesiumCameraController />
-
-      <CameraFlyTo
-        duration={0}
-        destination={Cartesian3.fromDegrees(
-          ATL_CENTER.lon - 0.08,
-          ATL_CENTER.lat - 0.06,
-          4500,
-        )}
-        orientation={{
-          heading: 0.8,
-          pitch: -0.55,
-          roll: 0,
-        }}
-      />
+      <SpaceFreeCamera />
     </Viewer>
   );
 }

@@ -1,5 +1,10 @@
 import type { AircraftState } from "../store/useAircraftStore";
-import { altitudeToMeters, geoToScene, lerp, lerpAngle } from "../utils/geoMath";
+import {
+  altitudeToMeters,
+  geoToScene,
+  lerp,
+  lerpAngle,
+} from "../utils/geoMath";
 
 const targets = new Map<
   string,
@@ -46,6 +51,7 @@ export function getInterpolatedGeoState(ac: AircraftState): {
   lon: number;
   altMeters: number;
   headingRad: number;
+  clampToGround: boolean;
 } {
   const target = targets.get(ac.id);
   if (!target) {
@@ -54,6 +60,7 @@ export function getInterpolatedGeoState(ac: AircraftState): {
       lon: ac.rawLon,
       altMeters: altitudeToMeters(ac.altitude, ac.onGround),
       headingRad: -((ac.heading * Math.PI) / 180),
+      clampToGround: ac.onGround,
     };
   }
 
@@ -67,11 +74,14 @@ export function getInterpolatedGeoState(ac: AircraftState): {
   const toRad = -((target.toHeading * Math.PI) / 180);
   const headingRad = lerpAngle(fromRad, toRad, t);
 
+  const onGround = ac.onGround && altitudeFeet < 500;
+
   return {
     lat,
     lon,
-    altMeters: altitudeToMeters(altitudeFeet, ac.onGround),
+    altMeters: altitudeToMeters(altitudeFeet, onGround),
     headingRad,
+    clampToGround: onGround,
   };
 }
 
