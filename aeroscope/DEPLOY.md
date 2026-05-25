@@ -26,7 +26,9 @@ Use `.env.local` locally (see `.env.example`).
 5. Open `https://<your-app>/api/health` — expect `opensky.authOk: true`.
    - `configured: false` → env vars are not visible to the server.
    - `authError: "fetch failed"` → Vercel cannot reach the OpenSky auth host; add env `NODE_OPTIONS=--dns-result-order=ipv4first` (Production + Preview) and redeploy. The app will fall back to anonymous OpenSky when token fetch fails.
-6. Optional Vercel env: `NODE_OPTIONS` = `--dns-result-order=ipv4first` (fixes some `fetch failed` errors to `auth.opensky-network.org`).
+6. Optional Vercel env: `NODE_OPTIONS` = `--dns-result-order=ipv4first`.
+7. **EU regions:** API routes use `preferredRegion` = `fra1`, `cdg1`, `ams1`, `lhr1` (OpenSky is in Europe). If `/api/health` shows `UND_ERR_CONNECT_TIMEOUT` from a US region (`vercelRegion: iad1`), redeploy and confirm `authHostReachable: true`.
+8. If EU Vercel still cannot reach OpenSky (`authHostReachable` and `apiHostReachable` both false), OpenSky may block datacenter IPs — host a tiny EU proxy (Railway/Fly) and set `OPENSKY_STATES_URL` / `OPENSKY_TOKEN_URL` to that proxy, or run the Next app on a host with working outbound access to `opensky-network.org`.
 
 ## Build
 

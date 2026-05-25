@@ -1,11 +1,11 @@
-import https from "node:https";
 import { formatNetworkError } from "./networkError";
+import { httpsRequest } from "./httpsGet";
 
 const TOKEN_URL =
   process.env.OPENSKY_TOKEN_URL?.trim() ||
   "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token";
 const TOKEN_REFRESH_MARGIN = 30;
-const TOKEN_TIMEOUT_MS = 20_000;
+const TOKEN_TIMEOUT_MS = 25_000;
 
 type TokenCache = {
   token: string;
@@ -38,63 +38,6 @@ export function isOpenSkyTokenCached(): boolean {
   return tokenCache !== null && Date.now() < tokenCache.expiresAt;
 }
 
-function postFormHttps(
-  url: string,
-  body: string,
-  timeoutMs: number,
-): Promise<{ status: number; text: string }> {
-  return new Promise((resolve, reject) => {
-    const parsed = new URL(url);
-    const req = https.request(
-      {
-        hostname: parsed.hostname,
-        port: parsed.port || 443,
-        path: `${parsed.pathname}${parsed.search}`,
-        method: "POST",
-        family: 4,
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "Content-Length": Buffer.byteLength(body),
-        },
-        timeout: timeoutMs,
-      },
-      (res) => {
-        const chunks: Buffer[] = [];
-        res.on("data", (chunk: Buffer) => chunks.push(chunk));
-        res.on("end", () => {
-          resolve({
-            status: res.statusCode ?? 0,
-            text: Buffer.concat(chunks).toString("utf8"),
-          });
-        });
-      },
-    );
-
-    req.on("timeout", () => {
-      req.destroy();
-      reject(new Error(`OpenSky token request timed out after ${timeoutMs}ms`));
-    });
-    req.on("error", reject);
-    req.write(body);
-    req.end();
-  });
-}
-
-async function postFormFetch(
-  url: string,
-  body: string,
-  timeoutMs: number,
-): Promise<{ status: number; text: string }> {
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body,
-    signal: AbortSignal.timeout(timeoutMs),
-    cache: "no-store",
-  });
-  return { status: response.status, text: await response.text() };
-}
-
 async function requestToken(
   clientId: string,
   clientSecret: string,
@@ -107,12 +50,27 @@ async function requestToken(
 
   let lastError: unknown;
 
-  for (const attempt of ["https-ipv4", "fetch"] as const) {
+  for (const via of ["https-ipv4", "fetch"] as const) {
     try {
-      const result =
-        attempt === "https-ipv4"
-          ? await postFormHttps(TOKEN_URL, body, TOKEN_TIMEOUT_MS)
-          : await postFormFetch(TOKEN_URL, body, TOKEN_TIMEOUT_MS);
+      let result: { status: number; text: string };
+
+      if (via === "https-ipv4") {
+        result = await httpsRequest(TOKEN_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body,
+          timeoutMs: TOKEN_TIMEOUT_MS,
+        });
+      } else {
+        const response = await fetch(TOKEN_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body,
+          signal: AbortSignal.timeout(TOKEN_TIMEOUT_MS),
+          cache: "no-store",
+        });
+        result = { status: response.status, text: await response.text() };
+      }
 
       if (result.status < 200 || result.status >= 300) {
         throw new Error(
@@ -127,7 +85,7 @@ async function requestToken(
     } catch (err) {
       lastError = err;
       console.warn(
-        `[Aeroscope] OpenSky token via ${attempt} failed:`,
+        `[Aeroscope] OpenSky token via ${via} failed:`,
         formatNetworkError(err),
       );
     }
@@ -158,17 +116,15 @@ export async function getOpenSkyAuthHeaders(): Promise<Record<string, string>> {
   return { Authorization: `Bearer ${tokenCache.token}` };
 }
 
-async function probeHost(
+async function probeHostHttps(
   url: string,
-  method: "GET" | "HEAD" = "HEAD",
 ): Promise<{ ok: boolean; status?: number; error?: string }> {
   try {
-    const response = await fetch(url, {
-      method,
-      signal: AbortSignal.timeout(10_000),
-      cache: "no-store",
+    const result = await httpsRequest(url, {
+      method: "GET",
+      timeoutMs: 20_000,
     });
-    return { ok: true, status: response.status };
+    return { ok: true, status: result.status };
   } catch (err) {
     return { ok: false, error: formatNetworkError(err) };
   }
@@ -180,14 +136,18 @@ export async function probeOpenSkyAuth(): Promise<{
   ok: boolean;
   error?: string;
   tokenUrl: string;
+  vercelRegion: string | null;
   authHostProbe: { ok: boolean; status?: number; error?: string };
   apiHostProbe: { ok: boolean; status?: number; error?: string };
 }> {
   const configured = isOpenSkyConfigured();
-  const authHostProbe = await probeHost(TOKEN_URL);
-  const apiHostProbe = await probeHost(
+  const vercelRegion = process.env.VERCEL_REGION ?? null;
+
+  const authHostProbe = await probeHostHttps(
+    "https://auth.opensky-network.org/",
+  );
+  const apiHostProbe = await probeHostHttps(
     "https://opensky-network.org/api/states/all?lamin=0&lomin=0&lamax=1&lomax=1",
-    "GET",
   );
 
   if (!configured) {
@@ -195,6 +155,7 @@ export async function probeOpenSkyAuth(): Promise<{
       configured: false,
       ok: false,
       tokenUrl: TOKEN_URL,
+      vercelRegion,
       authHostProbe,
       apiHostProbe,
       error: "OPENSKY_CLIENT_ID or OPENSKY_CLIENT_SECRET is not set on the server",
@@ -207,6 +168,7 @@ export async function probeOpenSkyAuth(): Promise<{
       configured: true,
       ok: true,
       tokenUrl: TOKEN_URL,
+      vercelRegion,
       authHostProbe,
       apiHostProbe,
     };
@@ -215,6 +177,7 @@ export async function probeOpenSkyAuth(): Promise<{
       configured: true,
       ok: false,
       tokenUrl: TOKEN_URL,
+      vercelRegion,
       authHostProbe,
       apiHostProbe,
       error: formatNetworkError(err),

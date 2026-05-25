@@ -1,12 +1,16 @@
 import { OPENSKY_SERVER_CACHE_MS } from "@/config/aircraftMotion";
 import { boundsKey, boundsQuery, parseBounds } from "./bounds";
 import { formatNetworkError } from "./networkError";
+import { httpsRequest } from "./httpsGet";
 import {
   getOpenSkyAuthHeaders,
   isOpenSkyConfigured,
 } from "./tokenManager";
 
-const AIRCRAFT_URL = "https://opensky-network.org/api/states/all";
+const AIRCRAFT_URL =
+  process.env.OPENSKY_STATES_URL?.trim() ||
+  "https://opensky-network.org/api/states/all";
+const STATES_TIMEOUT_MS = 25_000;
 const CACHE_TTL_MS = OPENSKY_SERVER_CACHE_MS;
 
 type CacheEntry = { data: unknown; lastFetch: number };
@@ -19,14 +23,38 @@ export type OpenSkyStatesResult = {
   error?: string;
 };
 
-async function fetchStatesFromOpenSky(
+async function fetchStatesJson(
   boundsQueryString: string,
   headers: Record<string, string>,
-): Promise<Response> {
-  return fetch(AIRCRAFT_URL + boundsQueryString, {
-    headers,
-    signal: AbortSignal.timeout(25_000),
-  });
+): Promise<unknown> {
+  const url = AIRCRAFT_URL + boundsQueryString;
+
+  try {
+    const response = await fetch(url, {
+      headers,
+      signal: AbortSignal.timeout(STATES_TIMEOUT_MS),
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`OpenSky states ${response.status}: ${body.slice(0, 200)}`);
+    }
+    return response.json();
+  } catch (fetchErr) {
+    console.warn(
+      "[Aeroscope] OpenSky states fetch failed, retrying via https IPv4:",
+      formatNetworkError(fetchErr),
+    );
+    const result = await httpsRequest(url, {
+      method: "GET",
+      headers,
+      timeoutMs: STATES_TIMEOUT_MS,
+    });
+    if (result.status < 200 || result.status >= 300) {
+      throw new Error(`OpenSky states ${result.status}: ${result.text.slice(0, 200)}`);
+    }
+    return JSON.parse(result.text) as unknown;
+  }
 }
 
 export async function fetchOpenSkyStates(
@@ -70,19 +98,16 @@ export async function fetchOpenSkyStates(
       );
     }
 
-    let response = await fetchStatesFromOpenSky(boundsQs, headers);
-
-    if (!response.ok && configured && response.status === 401) {
-      console.warn("[Aeroscope] OpenSky 401 with token — retrying without auth");
-      response = await fetchStatesFromOpenSky(boundsQs, {});
+    let data: unknown;
+    try {
+      data = await fetchStatesJson(boundsQs, headers);
+    } catch (firstErr) {
+      if (!configured || !headers.Authorization) {
+        throw firstErr;
+      }
+      console.warn("[Aeroscope] OpenSky failed with token — retrying anonymous");
+      data = await fetchStatesJson(boundsQs, {});
     }
-
-    if (!response.ok) {
-      const body = await response.text();
-      throw new Error(`OpenSky states ${response.status}: ${body.slice(0, 200)}`);
-    }
-
-    const data = await response.json();
     const states = (data as { states?: unknown[] | null }).states;
     const count = Array.isArray(states) ? states.length : 0;
 
@@ -110,7 +135,7 @@ export async function fetchOpenSkyStates(
         error: message,
         configured,
         hint: configured
-          ? "Check OPENSKY_CLIENT_ID and OPENSKY_CLIENT_SECRET on Vercel (Production + Preview), then redeploy."
+          ? "OpenSky may be unreachable from this Vercel region. Redeploy after setting API routes to EU (fra1/cdg1). If still failing, host the API proxy in EU (Railway/Fly) or contact OpenSky about cloud IP access."
           : "Set OPENSKY_CLIENT_ID and OPENSKY_CLIENT_SECRET in Vercel → Project → Settings → Environment Variables.",
       },
       status: 502,
