@@ -23,7 +23,10 @@ Use `.env.local` locally (see `.env.example`).
 2. Add `OPENSKY_CLIENT_ID` and `OPENSKY_CLIENT_SECRET` with scope **Production** and **Preview** (not only Development).
 3. Values must have **no quotes** and no trailing spaces (paste the raw client id/secret from OpenSky).
 4. **Redeploy** after changing env vars (existing deployments do not pick up new variables).
-5. Open `https://<your-app>/api/health` — expect `opensky.authOk: true`. If `configured: false`, env vars are not visible to the server.
+5. Open `https://<your-app>/api/health` — expect `opensky.authOk: true`.
+   - `configured: false` → env vars are not visible to the server.
+   - `authError: "fetch failed"` → Vercel cannot reach the OpenSky auth host; add env `NODE_OPTIONS=--dns-result-order=ipv4first` (Production + Preview) and redeploy. The app will fall back to anonymous OpenSky when token fetch fails.
+6. Optional Vercel env: `NODE_OPTIONS` = `--dns-result-order=ipv4first` (fixes some `fetch failed` errors to `auth.opensky-network.org`).
 
 ## Build
 

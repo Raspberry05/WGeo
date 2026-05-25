@@ -21,6 +21,13 @@ export async function GET() {
       tokenCached: isOpenSkyTokenCached(),
       authOk: auth.ok,
       authError: auth.error ?? null,
+      tokenUrl: auth.tokenUrl,
+      authHostReachable: auth.authHostProbe.ok,
+      authHostStatus: auth.authHostProbe.status ?? null,
+      authHostError: auth.authHostProbe.error ?? null,
+      apiHostReachable: auth.apiHostProbe.ok,
+      apiHostStatus: auth.apiHostProbe.status ?? null,
+      apiHostError: auth.apiHostProbe.error ?? null,
     },
   });
 }

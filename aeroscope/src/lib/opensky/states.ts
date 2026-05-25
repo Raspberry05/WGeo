@@ -1,5 +1,6 @@
 import { OPENSKY_SERVER_CACHE_MS } from "@/config/aircraftMotion";
 import { boundsKey, boundsQuery, parseBounds } from "./bounds";
+import { formatNetworkError } from "./networkError";
 import {
   getOpenSkyAuthHeaders,
   isOpenSkyConfigured,
@@ -55,7 +56,14 @@ export async function fetchOpenSkyStates(
   try {
     let headers: Record<string, string> = {};
     if (configured) {
-      headers = await getOpenSkyAuthHeaders();
+      try {
+        headers = await getOpenSkyAuthHeaders();
+      } catch (tokenErr) {
+        console.warn(
+          "[Aeroscope] Token fetch failed — using anonymous OpenSky:",
+          formatNetworkError(tokenErr),
+        );
+      }
     } else {
       console.warn(
         "[Aeroscope] OpenSky credentials missing — using anonymous API (strict rate limits)",
