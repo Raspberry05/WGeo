@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { DEFAULT_AIRPORT_ID } from "../data/airports";
 
 export type AircraftStatus = "taxiing" | "airborne" | "landing" | "parked";
-export type CameraFlyTarget = "airport" | "aircraft" | "globe";
+export type CameraFlyTarget = "airport" | "aircraft";
 export type CameraMode = "free" | "follow";
 
 export interface AircraftState {

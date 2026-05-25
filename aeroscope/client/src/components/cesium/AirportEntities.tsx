@@ -3,6 +3,7 @@ import {
   Cartesian2,
   Cartesian3,
   Color,
+  HeightReference,
   LabelStyle,
   VerticalOrigin,
   type Entity,
@@ -29,7 +30,6 @@ export function AirportEntities() {
 
     for (const airport of getAllAirports()) {
       const isActive = airport.id === activeAirportId;
-      const pickable = !isActive || activeAirportPickEnabled;
       const accent = isActive ? "#00ff88" : "#666666";
       const label = isActive && !activeAirportPickEnabled
         ? `${airport.id} · tap aircraft`
@@ -44,6 +44,7 @@ export function AirportEntities() {
           color: Color.fromCssColorString(accent),
           outlineColor: Color.WHITE,
           outlineWidth: isActive ? 2 : 1,
+          heightReference: HeightReference.CLAMP_TO_GROUND,
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
         },
         label: {
@@ -55,6 +56,7 @@ export function AirportEntities() {
           style: LabelStyle.FILL,
           verticalOrigin: VerticalOrigin.BOTTOM,
           pixelOffset: new Cartesian2(0, -20),
+          heightReference: HeightReference.CLAMP_TO_GROUND,
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
           showBackground: true,
           backgroundColor: Color.fromCssColorString("rgba(0,0,0,0.7)"),
@@ -63,6 +65,7 @@ export function AirportEntities() {
           semiMajorAxis: airport.radiusKm * 1000,
           semiMinorAxis: airport.radiusKm * 1000,
           height: 0,
+          heightReference: HeightReference.CLAMP_TO_GROUND,
           material: Color.fromCssColorString(
             isActive ? "rgba(0,255,136,0.08)" : "rgba(120,120,120,0.04)",
           ),
@@ -73,7 +76,6 @@ export function AirportEntities() {
           outlineWidth: isActive ? 2 : 1,
         },
       });
-      entity.allowPicking = pickable;
       entitiesRef.current.push(entity);
     }
 

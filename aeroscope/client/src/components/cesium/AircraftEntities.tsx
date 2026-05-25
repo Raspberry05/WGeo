@@ -5,6 +5,7 @@ import {
   Cartesian2,
   Cartesian3,
   Color,
+  ConstantProperty,
   HeadingPitchRoll,
   HeightReference,
   LabelStyle,
@@ -29,6 +30,35 @@ const STATUS_COLORS: Record<string, string> = {
   taxiing: "#00aaff",
   parked: "#888888",
 };
+
+function applyModelStyle(
+  entity: Entity,
+  ac: AircraftState,
+  isSelected: boolean,
+): void {
+  if (!entity.model) return;
+
+  const color = STATUS_COLORS[ac.status] ?? "#ffffff";
+  const config = getAircraftModelConfig(ac.categoryCode);
+  const heightRef = ac.onGround
+    ? HeightReference.CLAMP_TO_GROUND
+    : HeightReference.NONE;
+
+  entity.model.uri = new ConstantProperty(config.uri);
+  entity.model.scale = new ConstantProperty(
+    config.scale * (ac.onGround ? 0.85 : 1),
+  );
+  entity.model.minimumPixelSize = new ConstantProperty(isSelected ? 56 : 44);
+  entity.model.silhouetteSize = new ConstantProperty(isSelected ? 2.5 : 1.2);
+  entity.model.colorBlendAmount = new ConstantProperty(
+    isSelected ? 0.35 : 0.15,
+  );
+  entity.model.color = new ConstantProperty(Color.fromCssColorString(color));
+  entity.model.silhouetteColor = new ConstantProperty(
+    Color.fromCssColorString(color),
+  );
+  entity.model.heightReference = new ConstantProperty(heightRef);
+}
 
 function createAircraftEntity(viewer: Viewer, ac: AircraftState): Entity {
   const color = STATUS_COLORS[ac.status] ?? "#ffffff";
@@ -59,7 +89,7 @@ function createAircraftEntity(viewer: Viewer, ac: AircraftState): Entity {
     );
   }, false);
 
-  return viewer.entities.add({
+  const entity = viewer.entities.add({
     id: ac.id,
     name: ac.callsign,
     position,
@@ -94,16 +124,20 @@ function createAircraftEntity(viewer: Viewer, ac: AircraftState): Entity {
       heightReference: heightRef,
     },
   });
+
+  return entity;
 }
 
 export function AircraftEntities() {
   const viewer = useCesiumStore((s) => s.viewer);
   const entityMapRef = useRef<Map<string, Entity>>(new Map());
+  const categoryMapRef = useRef<Map<string, number | null>>(new Map());
 
   useEffect(() => {
     if (!viewer) return;
 
     const map = entityMapRef.current;
+    const categoryMap = categoryMapRef.current;
 
     const syncAll = () => {
       const { aircraft, selectedId, categoryFilter } =
@@ -114,6 +148,7 @@ export function AircraftEntities() {
         if (!ids.has(id)) {
           viewer.entities.remove(entity);
           map.delete(id);
+          categoryMap.delete(id);
         }
       }
 
@@ -123,22 +158,29 @@ export function AircraftEntities() {
 
         if (!map.has(ac.id)) {
           map.set(ac.id, createAircraftEntity(viewer, ac));
+          categoryMap.set(ac.id, ac.categoryCode);
         }
+
         const entity = map.get(ac.id)!;
         entity.show = visible;
         if (!visible) continue;
 
-        const isSelected = selectedId === ac.id;
-        const color = STATUS_COLORS[ac.status] ?? "#ffffff";
-        if (entity.model) {
-          entity.model.minimumPixelSize = isSelected ? 56 : 44;
-          entity.model.silhouetteSize = isSelected ? 2.5 : 1.2;
-          entity.model.colorBlendAmount = isSelected ? 0.35 : 0.15;
-          entity.model.color = Color.fromCssColorString(color);
-          entity.model.silhouetteColor = Color.fromCssColorString(color);
+        const prevCategory = categoryMap.get(ac.id);
+        if (prevCategory !== ac.categoryCode) {
+          categoryMap.set(ac.id, ac.categoryCode);
         }
+
+        const isSelected = selectedId === ac.id;
+        applyModelStyle(entity, ac, isSelected);
+
         if (entity.label) {
-          entity.label.fillColor = Color.fromCssColorString(color);
+          entity.label.fillColor = new ConstantProperty(
+            Color.fromCssColorString(STATUS_COLORS[ac.status] ?? "#ffffff"),
+          );
+          const heightRef = ac.onGround
+            ? HeightReference.CLAMP_TO_GROUND
+            : HeightReference.NONE;
+          entity.label.heightReference = new ConstantProperty(heightRef);
         }
       }
     };
@@ -152,6 +194,7 @@ export function AircraftEntities() {
         viewer.entities.remove(entity);
       }
       map.clear();
+      categoryMap.clear();
     };
   }, [viewer]);
 

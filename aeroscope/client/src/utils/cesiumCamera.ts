@@ -13,10 +13,8 @@ import { getAirport } from "../data/airports";
 import { getInterpolatedGeoState } from "../systems/interpolationSystem";
 import { useAircraftStore } from "../store/useAircraftStore";
 
-export const EARTH_CENTER = Cartesian3.ZERO;
 export const MIN_ZOOM_M = 80;
 export const MAX_ZOOM_M = 12_000_000;
-export const GLOBE_VIEW_THRESHOLD_M = 800_000;
 export const FLY_DURATION_S = 2.0;
 export const FOLLOW_MIN_RANGE_M = 200;
 export const FOLLOW_MAX_RANGE_M = 8000;
@@ -129,30 +127,6 @@ export function flyToAircraft(
   );
 }
 
-export function flyToGlobeCenter(viewer: Viewer, onComplete?: () => void): void {
-  const range = CesiumMath.clamp(
-    viewer.camera.positionCartographic.height,
-    GLOBE_VIEW_THRESHOLD_M,
-    MAX_ZOOM_M,
-  );
-  smoothFly(
-    viewer.camera,
-    Cartesian3.fromDegrees(0, 15, range),
-    {
-      heading: 0,
-      pitch: CesiumMath.toRadians(-90),
-      roll: 0,
-    },
-    () => {
-      viewer.camera.lookAt(
-        EARTH_CENTER,
-        new HeadingPitchRange(0, CesiumMath.toRadians(-90), range),
-      );
-      onComplete?.();
-    },
-  );
-}
-
 function followRangeFromCamera(camera: Camera, center: Cartesian3): number {
   const dist = Cartesian3.distance(camera.position, center);
   return CesiumMath.clamp(dist, FOLLOW_MIN_RANGE_M, FOLLOW_MAX_RANGE_M);
@@ -179,19 +153,12 @@ export function attachCameraSystem(viewer: Viewer): () => void {
 
   let lastFlyToken = -1;
   let initialDone = false;
-  let globeFlyInProgress = false;
   let lastCameraMode: "free" | "follow" = "free";
 
   const processFlyRequest = () => {
     const state = useAircraftStore.getState();
     if (state.cameraFlyToken === lastFlyToken) return;
     lastFlyToken = state.cameraFlyToken;
-
-    if (state.cameraFlyTarget === "globe") {
-      setFollowControllerMode(viewer, false);
-      flyToGlobeCenter(viewer);
-      return;
-    }
 
     if (state.cameraFlyTarget === "aircraft" && state.cameraFlyTargetId) {
       const ac = state.aircraft[state.cameraFlyTargetId];
@@ -223,18 +190,6 @@ export function attachCameraSystem(viewer: Viewer): () => void {
 
   const onMoveEnd = () => {
     clampHeight(viewer.camera);
-    const state = useAircraftStore.getState();
-    if (state.cameraMode === "follow") return;
-
-    const height = viewer.camera.positionCartographic.height;
-    if (height >= GLOBE_VIEW_THRESHOLD_M && !globeFlyInProgress) {
-      globeFlyInProgress = true;
-      flyToGlobeCenter(viewer, () => {
-        globeFlyInProgress = false;
-      });
-    } else if (height < GLOBE_VIEW_THRESHOLD_M * 0.85) {
-      releaseCameraLock(viewer.camera);
-    }
   };
 
   const onTick = () => {
