@@ -1,50 +1,38 @@
+import { useCallback } from "react";
 import { FILTERABLE_CATEGORIES } from "../../utils/aircraftCategory";
 import { useAircraftStore } from "../../store/useAircraftStore";
-import {
-  hudAccent,
-  hudMuted,
-  hudPanelStyle,
-  HUD_FONT_SM,
-  hudText,
-} from "./hudTheme";
+import { HudPanel } from "./HudPanel";
+import { hudAccent, HUD_FONT_SM, hudText } from "./hudTheme";
 
 export function CategoryFilter() {
   const filter = useAircraftStore((s) => s.categoryFilter);
   const setCategoryFilter = useAircraftStore((s) => s.setCategoryFilter);
 
-  const toggle = (code: number) => {
-    if (!filter) {
-      setCategoryFilter([code]);
-      return;
-    }
-    if (filter.includes(code)) {
-      const next = filter.filter((c) => c !== code);
-      setCategoryFilter(next.length ? next : null);
-    } else {
-      setCategoryFilter([...filter, code]);
-    }
-  };
+  const toggle = useCallback(
+    (code: number) => {
+      if (!filter) {
+        setCategoryFilter([code]);
+        return;
+      }
+      if (filter.includes(code)) {
+        const next = filter.filter((c) => c !== code);
+        setCategoryFilter(next.length ? next : null);
+      } else {
+        setCategoryFilter([...filter, code]);
+      }
+    },
+    [filter, setCategoryFilter],
+  );
 
   return (
-    <div
-      style={{
-        ...hudPanelStyle,
-        flexShrink: 0,
-        padding: "10px 12px",
-        fontSize: HUD_FONT_SM,
-      }}
-    >
+    <HudPanel title="CATEGORY" flexShrink={0}>
       <div
         style={{
-          color: hudMuted,
-          letterSpacing: "1px",
-          marginBottom: "8px",
+          padding: "0 12px 10px",
           display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
+          justifyContent: "flex-end",
         }}
       >
-        <span>CATEGORY</span>
         <button
           type="button"
           onClick={() => setCategoryFilter(null)}
@@ -61,7 +49,14 @@ export function CategoryFilter() {
           ALL
         </button>
       </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+      <div
+        style={{
+          padding: "0 12px 12px",
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "6px",
+        }}
+      >
         {FILTERABLE_CATEGORIES.map(({ code, label }) => {
           const on = !filter || filter.includes(code);
           return (
@@ -85,6 +80,6 @@ export function CategoryFilter() {
           );
         })}
       </div>
-    </div>
+    </HudPanel>
   );
 }

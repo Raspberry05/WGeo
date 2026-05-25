@@ -14,11 +14,11 @@ import {
   formatUtcDateTime,
 } from "../../utils/flightUnits";
 import { AlternatingWeight } from "./AlternatingWeight";
+import { InspectorField } from "./InspectorField";
 import {
   hudMuted,
   hudPanelStyle,
   HUD_FONT_LG,
-  HUD_FONT_MD,
   HUD_FONT_SM,
   HUD_INSPECTOR_WIDTH,
   HUD_SIDEBAR_WIDTH,
@@ -47,36 +47,6 @@ export function AircraftInspector() {
   const dest = ac.destinationAirport?.toUpperCase() ?? "—";
   const routeNm = routeDistanceNm(ac.originAirport, ac.destinationAirport);
   const massKg = estimateMassKg(ac.categoryCode);
-
-  const Field = ({
-    label,
-    value,
-  }: {
-    label: string;
-    value: string | number | React.ReactNode;
-  }) => (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: "6px 0",
-        borderBottom: "1px solid #0d1f10",
-        gap: "10px",
-      }}
-    >
-      <span style={{ color: hudMuted, fontSize: HUD_FONT_SM }}>{label}</span>
-      <span
-        style={{
-          color: "#ccddcc",
-          fontFamily: "monospace",
-          fontSize: HUD_FONT_MD,
-        }}
-      >
-        {value}
-      </span>
-    </div>
-  );
 
   return (
     <div
@@ -115,9 +85,9 @@ export function AircraftInspector() {
         </div>
       </div>
 
-      <Field label="CATEGORY" value={ac.aircraftType} />
-      <Field label="BRAND / TYPE" value={brand} />
-      <Field
+      <InspectorField label="CATEGORY" value={ac.aircraftType} />
+      <InspectorField label="BRAND / TYPE" value={brand} />
+      <InspectorField
         label="ROUTE"
         value={
           <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
@@ -130,25 +100,25 @@ export function AircraftInspector() {
         }
       />
       {routeNm !== null && (
-        <Field
+        <InspectorField
           label="ROUTE DIST"
           value={`${routeNm < 10 ? routeNm.toFixed(1) : Math.round(routeNm)} NM`}
         />
       )}
-      <Field
+      <InspectorField
         label="FROM FIELD"
         value={formatDistanceToAirport(ac.rawLat, ac.rawLon, activeAirportId)}
       />
-      <Field label="COUNTRY" value={ac.originCountry || "—"} />
-      <Field label="STATUS" value={ac.status.toUpperCase()} />
-      <Field label="ALTITUDE" value={formatAltitudeFeet(ac.altitudeMeters)} />
-      <Field label="SPEED" value={formatSpeedKnots(ac.velocity)} />
-      <Field label="HEADING" value={`${Math.round(ac.heading)}°`} />
-      <Field
+      <InspectorField label="COUNTRY" value={ac.originCountry || "—"} />
+      <InspectorField label="STATUS" value={ac.status.toUpperCase()} />
+      <InspectorField label="ALTITUDE" value={formatAltitudeFeet(ac.altitudeMeters)} />
+      <InspectorField label="SPEED" value={formatSpeedKnots(ac.velocity)} />
+      <InspectorField label="HEADING" value={`${Math.round(ac.heading)}°`} />
+      <InspectorField
         label="WEIGHT (EST)"
         value={<AlternatingWeight massKg={massKg} />}
       />
-      <Field label="LAST FIX" value={formatUtcDateTime(ac.lastUpdated)} />
+      <InspectorField label="LAST FIX" value={formatUtcDateTime(ac.lastUpdated)} />
 
       <button
         type="button"

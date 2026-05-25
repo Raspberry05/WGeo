@@ -4,13 +4,8 @@ import {
   useAircraftStore,
 } from "../../store/useAircraftStore";
 import { formatAltitudeFeet, formatSpeedKnots } from "../../utils/flightUnits";
-import {
-  hudMuted,
-  hudPanelStyle,
-  HUD_FONT_MD,
-  HUD_FONT_SM,
-  hudText,
-} from "./hudTheme";
+import { HudPanel } from "./HudPanel";
+import { hudMuted, HUD_FONT_MD, HUD_FONT_SM, hudText } from "./hudTheme";
 
 const STATUS_COLORS: Record<string, string> = {
   airborne: "#00ff88",
@@ -36,30 +31,7 @@ export function AircraftList() {
     .sort((a, b) => b.altitudeMeters - a.altitudeMeters);
 
   return (
-    <div
-      style={{
-        ...hudPanelStyle,
-        display: "flex",
-        flexDirection: "column",
-        flex: 1,
-        minHeight: 0,
-        overflow: "hidden",
-        fontSize: HUD_FONT_SM,
-      }}
-    >
-      <div
-        style={{
-          padding: "10px 12px",
-          borderBottom: "1px solid #1a3a2a",
-          color: hudText,
-          fontSize: HUD_FONT_SM,
-          letterSpacing: "1px",
-          flexShrink: 0,
-        }}
-      >
-        TRAFFIC · {list.length}
-      </div>
-
+    <HudPanel title={`TRAFFIC · ${list.length}`} flex={1}>
       <div style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
         {list.map((ac) => {
           const color = STATUS_COLORS[ac.status] ?? "#ffffff";
@@ -129,6 +101,6 @@ export function AircraftList() {
           </div>
         )}
       </div>
-    </div>
+    </HudPanel>
   );
 }

@@ -1,59 +1,39 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { searchAirports } from "../../data/airportCatalog";
-import { useAircraftStore } from "../../store/useAircraftStore";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import {
-  hudAccent,
-  hudMuted,
-  hudPanelStyle,
-  HUD_FONT_MD,
-  HUD_FONT_SM,
-  hudText,
-} from "./hudTheme";
+  selectActiveAirportId,
+} from "../../store/selectors";
+import { useAircraftStore } from "../../store/useAircraftStore";
+import { AirportPickerRow } from "./AirportPickerRow";
+import { HudPanel } from "./HudPanel";
+import { hudMuted, HUD_FONT_SM } from "./hudTheme";
 
 const SEARCH_DEBOUNCE_MS = 200;
 
 export function AirportPicker() {
-  const activeAirportId = useAircraftStore((s) => s.activeAirportId);
+  const activeAirportId = useAircraftStore(selectActiveAirportId);
   const setActiveAirport = useAircraftStore((s) => s.setActiveAirport);
   const requestCameraFly = useAircraftStore((s) => s.requestCameraFly);
 
   const [query, setQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
-
-  useEffect(() => {
-    const id = window.setTimeout(() => {
-      setDebouncedQuery(query);
-    }, SEARCH_DEBOUNCE_MS);
-    return () => window.clearTimeout(id);
-  }, [query]);
+  const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS);
 
   const results = useMemo(
     () => searchAirports(debouncedQuery, 50),
     [debouncedQuery],
   );
 
+  const handleSelect = useCallback(
+    (icao: string) => {
+      setActiveAirport(icao);
+      requestCameraFly("airport", icao);
+    },
+    [setActiveAirport, requestCameraFly],
+  );
+
   return (
-    <div
-      style={{
-        ...hudPanelStyle,
-        display: "flex",
-        flexDirection: "column",
-        maxHeight: "38vh",
-        minHeight: "160px",
-        flexShrink: 0,
-      }}
-    >
-      <div
-        style={{
-          padding: "10px 12px",
-          borderBottom: "1px solid #1a3a2a",
-          color: hudMuted,
-          letterSpacing: "1px",
-          fontSize: HUD_FONT_SM,
-        }}
-      >
-        AIRPORTS
-      </div>
+    <HudPanel title="AIRPORTS" maxHeight="38vh" minHeight="160px">
       <div style={{ padding: "8px 10px", borderBottom: "1px solid #0d1f10" }}>
         <input
           type="search"
@@ -75,53 +55,16 @@ export function AirportPicker() {
         />
       </div>
       <div style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
-        {results.map((airport) => {
-          const isActive = airport.id === activeAirportId;
-          return (
-            <button
-              key={airport.id}
-              type="button"
-              onClick={() => {
-                setActiveAirport(airport.id);
-                requestCameraFly("airport", airport.id);
-              }}
-              style={{
-                display: "block",
-                width: "100%",
-                padding: "10px 12px",
-                textAlign: "left",
-                background: isActive ? "rgba(0,255,136,0.12)" : "transparent",
-                border: "none",
-                borderBottom: "1px solid #0d1f10",
-                color: isActive ? hudAccent : hudText,
-                cursor: "pointer",
-                fontFamily: "monospace",
-              }}
-            >
-              <div
-                style={{
-                  fontWeight: "bold",
-                  letterSpacing: "0.5px",
-                  fontSize: HUD_FONT_MD,
-                }}
-              >
-                {airport.id}
-              </div>
-              <div
-                style={{
-                  color: isActive ? "#5a8a6a" : hudMuted,
-                  fontSize: HUD_FONT_SM,
-                  marginTop: "3px",
-                }}
-              >
-                {airport.name}
-                {airport.municipality
-                  ? ` · ${airport.municipality}`
-                  : ""}
-              </div>
-            </button>
-          );
-        })}
+        {results.map((airport) => (
+          <AirportPickerRow
+            key={airport.id}
+            id={airport.id}
+            name={airport.name}
+            municipality={airport.municipality}
+            isActive={airport.id === activeAirportId}
+            onSelect={handleSelect}
+          />
+        ))}
         {results.length === 0 && (
           <div
             style={{
@@ -134,6 +77,6 @@ export function AirportPicker() {
           </div>
         )}
       </div>
-    </div>
+    </HudPanel>
   );
 }

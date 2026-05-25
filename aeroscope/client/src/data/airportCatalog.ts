@@ -1,3 +1,4 @@
+import { AIRPORTS_GLOBAL_URL, AIRPORTS_INDEX_URL } from "../config/dataPaths";
 import { boundsFromCenter } from "../utils/geoMath";
 import {
   buildAirportViewportIndex,
@@ -32,6 +33,23 @@ let loadPromise: Promise<void> | null = null;
 let fullLoadPromise: Promise<void> | null = null;
 let viewportIndex: AirportViewportIndex | null = null;
 let searchPrefixIndex: Map<string, AirportRecord[]> | null = null;
+const fullCatalogListeners = new Set<() => void>();
+
+function notifyFullCatalogLoaded(): void {
+  for (const listener of fullCatalogListeners) {
+    listener();
+  }
+}
+
+export function subscribeFullCatalogLoaded(listener: () => void): () => void {
+  if (catalog.length > 0) {
+    listener();
+  }
+  fullCatalogListeners.add(listener);
+  return () => {
+    fullCatalogListeners.delete(listener);
+  };
+}
 
 function mapToRecord(map: AirportMapRecord): AirportRecord {
   const full = byId.get(map.id);
@@ -66,7 +84,7 @@ async function loadFullCatalogInBackground(): Promise<void> {
   if (fullLoadPromise) return fullLoadPromise;
 
   fullLoadPromise = (async () => {
-    const res = await fetch("/data/airports-index.json");
+    const res = await fetch(AIRPORTS_INDEX_URL);
     if (!res.ok) {
       throw new Error(`Failed to load full airport index: ${res.status}`);
     }
@@ -75,6 +93,7 @@ async function loadFullCatalogInBackground(): Promise<void> {
     byId = new Map(data.map((a) => [a.id, a]));
     viewportIndex = buildAirportViewportIndex(data);
     buildSearchPrefixIndex(data);
+    notifyFullCatalogLoaded();
   })();
 
   return fullLoadPromise;
@@ -97,7 +116,7 @@ export async function loadAirportCatalog(): Promise<void> {
   if (loadPromise) return loadPromise;
 
   loadPromise = (async () => {
-    const res = await fetch("/data/airports-global.json");
+    const res = await fetch(AIRPORTS_GLOBAL_URL);
     if (!res.ok) {
       throw new Error(`Failed to load airport catalog: ${res.status}`);
     }
@@ -145,7 +164,8 @@ export function recordToAirport(record: AirportRecord): Airport {
 export function getAirportFromCatalog(id: string): Airport {
   const record = byId.get(id.toUpperCase());
   if (!record) {
-    const fallback = byId.get("KATL") ?? mapToRecord(globalCatalog[0]);
+    const firstGlobal = globalCatalog[0];
+    const fallback = byId.get("KATL") ?? (firstGlobal ? mapToRecord(firstGlobal) : undefined);
     if (!fallback) {
       throw new Error("Airport catalog not loaded");
     }

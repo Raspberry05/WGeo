@@ -6,8 +6,8 @@ import {
   AirportFlag,
   CountryFlagByName,
   FlagIcon,
-  countryNameToIso2,
 } from "../../utils/countryFlags";
+import { countryNameToIso2 } from "../../utils/countryFlagUtils";
 import { formatAltitudeFeet, formatSpeedKnots } from "../../utils/flightUnits";
 import {
   hudAccent,

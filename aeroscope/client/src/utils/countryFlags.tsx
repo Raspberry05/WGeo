@@ -1,28 +1,6 @@
-import countries from "i18n-iso-countries";
-import en from "i18n-iso-countries/langs/en.json";
-import type { CSSProperties, ReactElement } from "react";
-import * as FlagIcons from "country-flag-icons/react/3x2";
+import { createElement } from "react";
 import { airportCountryCode } from "../data/airportRegistry";
-
-countries.registerLocale(en);
-
-export function countryNameToIso2(countryName: string | null | undefined): string | null {
-  if (!countryName?.trim()) return null;
-  const code = countries.getAlpha2Code(countryName.trim(), "en");
-  return code ?? null;
-}
-
-type FlagComponent = (props: {
-  title?: string;
-  className?: string;
-  style?: CSSProperties;
-}) => ReactElement;
-
-function flagComponent(iso2: string): FlagComponent | null {
-  const key = iso2.toUpperCase() as keyof typeof FlagIcons;
-  const C = FlagIcons[key];
-  return (C as FlagComponent | undefined) ?? null;
-}
+import { countryNameToIso2, flagComponent } from "./countryFlagUtils";
 
 interface FlagIconProps {
   iso2: string | null | undefined;
@@ -47,8 +25,8 @@ export function FlagIcon({ iso2, size = 18, title }: FlagIconProps) {
   }
 
   const code = iso2.toUpperCase();
-  const Flag = flagComponent(code);
-  if (!Flag) {
+  const FlagComp = flagComponent(code);
+  if (!FlagComp) {
     return (
       <span
         style={{
@@ -63,19 +41,17 @@ export function FlagIcon({ iso2, size = 18, title }: FlagIconProps) {
     );
   }
 
-  return (
-    <Flag
-      title={title ?? code}
-      style={{
-        width: size * 1.33,
-        height: size,
-        borderRadius: 2,
-        display: "inline-block",
-        verticalAlign: "middle",
-        boxShadow: "0 0 0 1px rgba(0,0,0,0.35)",
-      }}
-    />
-  );
+  return createElement(FlagComp, {
+    title: title ?? code,
+    style: {
+      width: size * 1.33,
+      height: size,
+      borderRadius: 2,
+      display: "inline-block",
+      verticalAlign: "middle",
+      boxShadow: "0 0 0 1px rgba(0,0,0,0.35)",
+    },
+  });
 }
 
 export function CountryFlagByName({

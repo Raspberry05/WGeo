@@ -191,7 +191,6 @@ export function attachCameraSystem(viewer: Viewer): () => void {
   configureCameraController(viewer);
 
   let lastFlyToken = -1;
-  let initialDone = false;
   let lastCameraMode: "free" | "follow" = "free";
 
   const processFlyRequest = () => {
@@ -279,22 +278,19 @@ export function attachCameraSystem(viewer: Viewer): () => void {
   viewer.camera.changed.addEventListener(onCameraChanged);
   viewer.clock.onTick.addEventListener(onTick);
 
-  if (!initialDone) {
-    initialDone = true;
-    viewer.camera.setView({
-      destination: Cartesian3.fromDegrees(
-        ATL_COORDS.lon,
-        ATL_COORDS.lat,
-        ATL_COORDS.alt,
-      ),
-      orientation: {
-        heading: CesiumMath.toRadians(30),
-        pitch: CesiumMath.toRadians(-40),
-        roll: 0,
-      },
-    });
-    lastFlyToken = useAircraftStore.getState().cameraFlyToken;
-  }
+  viewer.camera.setView({
+    destination: Cartesian3.fromDegrees(
+      ATL_COORDS.lon,
+      ATL_COORDS.lat,
+      ATL_COORDS.alt,
+    ),
+    orientation: {
+      heading: CesiumMath.toRadians(30),
+      pitch: CesiumMath.toRadians(-40),
+      roll: 0,
+    },
+  });
+  lastFlyToken = useAircraftStore.getState().cameraFlyToken;
 
   return () => {
     viewer.camera.moveEnd.removeEventListener(onMoveEnd);

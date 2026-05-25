@@ -4,7 +4,7 @@ import {
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
 } from "cesium";
-import { airportIdFromPickId } from "./AirportEntities";
+import { airportIdFromPickId } from "../../utils/airportPick";
 import { enrichSelectedAircraft } from "../../services/aircraftEnrichment";
 import { useAircraftStore } from "../../store/useAircraftStore";
 import { useCesiumStore } from "../../store/useCesiumStore";
