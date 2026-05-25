@@ -24,8 +24,19 @@ Redeploy Vercel after setting env vars.
 ## Verify
 
 - Proxy: `GET https://your-proxy/health` → `{"ok":true}`
-- Proxy: `GET https://your-proxy/states?lamin=0&lomin=0&lamax=1&lomax=1` → JSON with `states`
+- Proxy: `GET https://your-proxy/states?lamin=0&lomin=0&lamax=1&lomax=1` → JSON with `states` (repeat should be fast, `X-Cache: HIT`)
 - Vercel: `/api/health` → `authOk: true`, `opensky.usingProxy: true`
+
+## Railway 499 on `/states`
+
+**499** means the client (Vercel) closed the connection before Railway finished — usually OpenSky is slow and Vercel timed out first. This proxy caches states for **6s** and dedupes concurrent identical bbox requests. Redeploy Railway after pulling updates.
+
+Optional env on Railway:
+
+| Variable | Default |
+|----------|---------|
+| `UPSTREAM_TIMEOUT_MS` | `12000` |
+| `STATES_CACHE_TTL_MS` | `6000` |
 
 ## Local
 

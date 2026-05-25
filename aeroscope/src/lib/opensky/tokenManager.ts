@@ -120,14 +120,16 @@ export async function probeOpenSkyAuth(): Promise<{
 
   const usingProxy = isOpenSkyProxyConfigured();
   const proxyHealthUrl = getOpenSkyProxyHealthUrl();
-  const statesProbeUrl = getOpenSkyStatesProbeUrl();
 
-  const [authHostProbe, apiHostProbe] = await Promise.all([
-    usingProxy && proxyHealthUrl
-      ? probeHostHttps(proxyHealthUrl)
-      : probeHostHttps("https://auth.opensky-network.org/"),
-    probeHostHttps(statesProbeUrl),
-  ]);
+  const [authHostProbe, apiHostProbe] = usingProxy && proxyHealthUrl
+    ? await (async () => {
+        const proxyProbe = await probeHostHttps(proxyHealthUrl);
+        return [proxyProbe, proxyProbe] as const;
+      })()
+    : await Promise.all([
+        probeHostHttps("https://auth.opensky-network.org/"),
+        probeHostHttps(getOpenSkyStatesProbeUrl()),
+      ]);
 
   if (!configured) {
     return {
@@ -138,6 +140,17 @@ export async function probeOpenSkyAuth(): Promise<{
       authHostProbe,
       apiHostProbe,
       error: "OPENSKY_CLIENT_ID or OPENSKY_CLIENT_SECRET is not set on the server",
+    };
+  }
+
+  if (usingProxy && isOpenSkyTokenCached()) {
+    return {
+      configured: true,
+      ok: true,
+      tokenUrl: TOKEN_URL,
+      vercelRegion,
+      authHostProbe,
+      apiHostProbe,
     };
   }
 
