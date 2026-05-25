@@ -40,12 +40,16 @@ Use `.env.local` locally (see `.env.example`).
 
 ## CORS
 
-The browser loads the app and calls **`/api/opensky` on the same Vercel host** — that does not require CORS. CORS headers are enabled on `/api/*` for:
+Follows [Vercel: How to enable CORS](https://vercel.com/kb/guide/how-to-enable-cors):
 
-- Preview vs production domains you list in `CORS_ALLOWED_ORIGINS`
-- A separate frontend calling your Vercel API
+- **`src/middleware.ts`** — dynamic `Access-Control-Allow-Origin` for allowed origins (same host, `VERCEL_URL`, `CORS_ALLOWED_ORIGINS`)
+- **`next.config.ts` `headers()`** — baseline `Allow-Methods`, `Allow-Headers`, `Max-Age` on `/api/*`
 
-CORS does **not** fix server-side `CONNECT_TIMEOUT` to OpenSky (that is Vercel → OpenSky network, not the browser).
+The Aeroscope UI calls **`/api/opensky` on the same Vercel host** (no cross-origin). CORS helps preview URLs and a separate frontend calling your API.
+
+If **Vercel Authentication / Deployment Protection** is on, keep **`/api` in the OPTIONS Allowlist** (default for new projects) so preflight succeeds.
+
+CORS does **not** fix server-side `CONNECT_TIMEOUT` to OpenSky.
 
 ## API routes
 

@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { corsHeaders, handleCorsPreflight } from "@/lib/apiCors";
+import { corsHeaders, corsPreflightResponse } from "@/lib/apiCors";
 
 export function middleware(request: NextRequest) {
   if (!request.nextUrl.pathname.startsWith("/api/")) {
     return NextResponse.next();
   }
 
-  const preflight = handleCorsPreflight(request);
-  if (preflight) {
-    return preflight;
+  if (request.method === "OPTIONS") {
+    return corsPreflightResponse(request);
   }
 
   const response = NextResponse.next();

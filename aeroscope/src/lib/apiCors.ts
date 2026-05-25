@@ -1,29 +1,34 @@
 import type { NextRequest } from "next/server";
 
+/**
+ * CORS for /api/* — see https://vercel.com/kb/guide/how-to-enable-cors
+ * Aeroscope UI calls same-origin /api/opensky; these headers help preview/custom domains.
+ */
+
 const ALLOW_METHODS = "GET, POST, OPTIONS";
 const ALLOW_HEADERS = "Content-Type, Authorization";
 
-function parseAllowedOrigins(): string[] {
-  const fromEnv = process.env.CORS_ALLOWED_ORIGINS?.trim();
+function deploymentOrigins(): string[] {
   const list: string[] = [];
+  const add = (url: string | undefined) => {
+    if (!url) return;
+    const normalized = url.startsWith("http") ? url : `https://${url}`;
+    list.push(normalized.replace(/\/$/, ""));
+  };
 
-  if (fromEnv) {
+  add(process.env.NEXT_PUBLIC_APP_URL);
+  add(process.env.VERCEL_URL);
+  add(process.env.VERCEL_BRANCH_URL);
+  add(process.env.VERCEL_PROJECT_PRODUCTION_URL);
+
+  const extra = process.env.CORS_ALLOWED_ORIGINS?.trim();
+  if (extra) {
     list.push(
-      ...fromEnv
+      ...extra
         .split(",")
         .map((o) => o.trim())
         .filter(Boolean),
     );
-  }
-
-  const vercelUrl = process.env.VERCEL_URL?.trim();
-  if (vercelUrl) {
-    list.push(`https://${vercelUrl}`);
-  }
-
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  if (appUrl) {
-    list.push(appUrl.replace(/\/$/, ""));
   }
 
   return list;
@@ -41,14 +46,10 @@ function isOriginAllowed(origin: string, request: NextRequest): boolean {
     );
   }
 
-  const allowed = parseAllowedOrigins();
-  return allowed.includes(origin);
+  return deploymentOrigins().includes(origin);
 }
 
-/** CORS headers for /api routes (browser clients on other origins). */
-export function corsHeaders(
-  request: NextRequest,
-): Record<string, string> {
+export function corsHeaders(request: NextRequest): Record<string, string> {
   const origin = request.headers.get("origin");
   const headers: Record<string, string> = {
     "Access-Control-Allow-Methods": ALLOW_METHODS,
@@ -64,24 +65,17 @@ export function corsHeaders(
   return headers;
 }
 
-export function applyCors(
-  request: NextRequest,
-  response: Response,
-): Response {
-  const headers = corsHeaders(request);
-  for (const [key, value] of Object.entries(headers)) {
+export function applyCors(request: NextRequest, response: Response): Response {
+  for (const [key, value] of Object.entries(corsHeaders(request))) {
     response.headers.set(key, value);
   }
   return response;
 }
 
-export function handleCorsPreflight(request: NextRequest): Response | null {
-  if (request.method !== "OPTIONS") {
-    return null;
-  }
-
+/** OPTIONS preflight — must succeed when Vercel Deployment Protection is enabled. */
+export function corsPreflightResponse(request: NextRequest): Response {
   return new Response(null, {
-    status: 204,
+    status: 200,
     headers: corsHeaders(request),
   });
 }
