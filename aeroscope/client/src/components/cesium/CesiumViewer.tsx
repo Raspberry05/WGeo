@@ -1,23 +1,19 @@
 import { useEffect, useRef } from "react";
-import type { Cesium3DTileset } from "cesium";
 import * as Cesium from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import { setupCesiumIon } from "../../config/cesium";
-import { useAircraftStore } from "../../store/useAircraftStore";
 import { useCesiumStore } from "../../store/useCesiumStore";
 import { attachCameraSystem } from "../../utils/cesiumCamera";
-import { initCesiumScene, updateBuildingStyle } from "../../utils/cesiumScene";
+import { initCesiumScene } from "../../utils/cesiumScene";
 
 export function CesiumViewer() {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Cesium.Viewer | null>(null);
-  const buildingsRef = useRef<Cesium3DTileset | null>(null);
   const setViewer = useCesiumStore((s) => s.setViewer);
-  const activeAirportId = useAircraftStore((s) => s.activeAirportId);
-  const catalogReady = useAircraftStore((s) => s.airportCatalogReady);
+  const setSceneTerrainReady = useCesiumStore((s) => s.setSceneTerrainReady);
 
   useEffect(() => {
-    if (!containerRef.current || viewerRef.current || !catalogReady) return;
+    if (!containerRef.current || viewerRef.current) return;
 
     setupCesiumIon();
 
@@ -44,34 +40,33 @@ export function CesiumViewer() {
     let cancelled = false;
 
     void (async () => {
-      const scene = await initCesiumScene(viewer, activeAirportId);
-      if (cancelled) {
-        scene.destroy();
-        return;
+      try {
+        const scene = await initCesiumScene(viewer);
+        if (cancelled) {
+          scene.destroy();
+          return;
+        }
+        sceneCleanup = scene.destroy;
+        cameraCleanup = attachCameraSystem(viewer);
+        setSceneTerrainReady(scene.terrainReady);
+      } catch (err) {
+        console.error("[Aeroscope] CesiumViewer init failed:", err);
+        setSceneTerrainReady(false);
       }
-      buildingsRef.current = scene.buildings;
-      sceneCleanup = scene.destroy;
-      cameraCleanup = attachCameraSystem(viewer);
     })();
 
     return () => {
       cancelled = true;
+      setSceneTerrainReady(false);
       cameraCleanup?.();
       sceneCleanup?.();
-      buildingsRef.current = null;
       if (viewerRef.current && !viewerRef.current.isDestroyed()) {
         viewerRef.current.destroy();
         viewerRef.current = null;
       }
       setViewer(null);
     };
-  }, [setViewer, catalogReady]);
-
-  useEffect(() => {
-    if (buildingsRef.current && catalogReady) {
-      updateBuildingStyle(buildingsRef.current, activeAirportId);
-    }
-  }, [activeAirportId, catalogReady]);
+  }, [setViewer, setSceneTerrainReady]);
 
   return (
     <div

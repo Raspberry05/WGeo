@@ -1,7 +1,9 @@
 import {
   getAirportFromCatalog,
   getAirportRecords,
+  getAirportRecordsForMap,
   isAirportCatalogLoaded,
+  isFullCatalogLoaded,
   loadAirportCatalog,
   recordToAirport,
   type AirportRecord,
@@ -25,7 +27,13 @@ export interface Airport {
 
 export const DEFAULT_AIRPORT_ID = "KATL";
 
-export { loadAirportCatalog, isAirportCatalogLoaded, type AirportRecord };
+export {
+  loadAirportCatalog,
+  isAirportCatalogLoaded,
+  isFullCatalogLoaded,
+  getAirportRecordsForMap,
+  type AirportRecord,
+};
 
 export function getAirport(id: string): Airport {
   if (!isAirportCatalogLoaded()) {

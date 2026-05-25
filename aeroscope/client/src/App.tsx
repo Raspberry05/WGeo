@@ -1,12 +1,17 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { AircraftEntities } from "./components/cesium/AircraftEntities";
 import { AirportEntities } from "./components/cesium/AirportEntities";
-import { CesiumViewer } from "./components/cesium/CesiumViewer";
 import { ScenePickHandler } from "./components/cesium/ScenePickHandler";
 import { HUD } from "./components/hud/HUD";
 import { loadAirportCatalog } from "./data/airports";
 import { startAircraftSystem } from "./systems/aircraftSystem";
 import { useAircraftStore } from "./store/useAircraftStore";
+
+const CesiumViewer = lazy(() =>
+  import("./components/cesium/CesiumViewer").then((m) => ({
+    default: m.CesiumViewer,
+  })),
+);
 
 export default function App() {
   const cleanupRef = useRef<(() => void) | null>(null);
@@ -54,7 +59,26 @@ export default function App() {
         background: "#0d0d0f",
       }}
     >
-      <CesiumViewer />
+      <Suspense
+        fallback={
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#7a9a8a",
+              fontFamily: "monospace",
+              fontSize: "15px",
+            }}
+          >
+            Loading globe…
+          </div>
+        }
+      >
+        <CesiumViewer />
+      </Suspense>
       {catalogReady && (
         <>
           <AircraftEntities />

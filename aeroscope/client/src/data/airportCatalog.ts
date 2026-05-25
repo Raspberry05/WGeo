@@ -1,13 +1,21 @@
 import { boundsFromCenter } from "../utils/geoMath";
+import {
+  buildAirportViewportIndex,
+  type AirportViewportIndex,
+} from "../utils/airportViewportIndex";
 import type { Airport } from "./airports";
 
-export interface AirportRecord {
+/** Minimal fields for map rendering (global layer). */
+export interface AirportMapRecord {
   id: string;
-  name: string;
   lat: number;
   lon: number;
-  country: string;
   type: string;
+}
+
+export interface AirportRecord extends AirportMapRecord {
+  name: string;
+  country: string;
   municipality: string;
 }
 
@@ -17,31 +25,101 @@ const RADIUS_BY_TYPE: Record<string, number> = {
   small_airport: 35,
 };
 
+let globalCatalog: AirportMapRecord[] = [];
 let catalog: AirportRecord[] = [];
 let byId = new Map<string, AirportRecord>();
 let loadPromise: Promise<void> | null = null;
+let fullLoadPromise: Promise<void> | null = null;
+let viewportIndex: AirportViewportIndex | null = null;
+let searchPrefixIndex: Map<string, AirportRecord[]> | null = null;
 
-export function isAirportCatalogLoaded(): boolean {
-  return catalog.length > 0;
+function mapToRecord(map: AirportMapRecord): AirportRecord {
+  const full = byId.get(map.id);
+  if (full) return full;
+  return {
+    ...map,
+    name: map.id,
+    country: "",
+    municipality: "",
+  };
 }
 
-export async function loadAirportCatalog(): Promise<void> {
-  if (catalog.length > 0) return;
-  if (loadPromise) return loadPromise;
+function buildSearchPrefixIndex(records: AirportRecord[]): void {
+  const index = new Map<string, AirportRecord[]>();
+  for (const a of records) {
+    const id = a.id.toUpperCase();
+    for (let len = 2; len <= Math.min(4, id.length); len++) {
+      const prefix = id.slice(0, len);
+      const bucket = index.get(prefix);
+      if (bucket) {
+        bucket.push(a);
+      } else {
+        index.set(prefix, [a]);
+      }
+    }
+  }
+  searchPrefixIndex = index;
+}
 
-  loadPromise = (async () => {
+async function loadFullCatalogInBackground(): Promise<void> {
+  if (catalog.length > 0) return fullLoadPromise ?? Promise.resolve();
+  if (fullLoadPromise) return fullLoadPromise;
+
+  fullLoadPromise = (async () => {
     const res = await fetch("/data/airports-index.json");
-    if (!res.ok) throw new Error(`Failed to load airport catalog: ${res.status}`);
+    if (!res.ok) {
+      throw new Error(`Failed to load full airport index: ${res.status}`);
+    }
     const data = (await res.json()) as AirportRecord[];
     catalog = data;
     byId = new Map(data.map((a) => [a.id, a]));
+    viewportIndex = buildAirportViewportIndex(data);
+    buildSearchPrefixIndex(data);
+  })();
+
+  return fullLoadPromise;
+}
+
+export function isAirportCatalogLoaded(): boolean {
+  return globalCatalog.length > 0;
+}
+
+export function isFullCatalogLoaded(): boolean {
+  return catalog.length > 0;
+}
+
+export function getViewportIndex(): AirportViewportIndex | null {
+  return viewportIndex;
+}
+
+export async function loadAirportCatalog(): Promise<void> {
+  if (globalCatalog.length > 0) return;
+  if (loadPromise) return loadPromise;
+
+  loadPromise = (async () => {
+    const res = await fetch("/data/airports-global.json");
+    if (!res.ok) {
+      throw new Error(`Failed to load airport catalog: ${res.status}`);
+    }
+    const data = (await res.json()) as AirportMapRecord[];
+    globalCatalog = data;
+    byId = new Map(data.map((a) => [a.id, mapToRecord(a)]));
+
+    void loadFullCatalogInBackground().catch((err: unknown) => {
+      console.warn("[Aeroscope] Full airport index load failed:", err);
+    });
   })();
 
   return loadPromise;
 }
 
+/** Large + medium airports for the always-on map layer. */
+export function getAirportRecordsForMap(): AirportMapRecord[] {
+  return globalCatalog;
+}
+
 export function getAirportRecords(): AirportRecord[] {
-  return catalog;
+  return catalog.length > 0 ? catalog : globalCatalog.map(mapToRecord);
 }
 
 export function getAirportRecord(id: string): AirportRecord | undefined {
@@ -67,7 +145,7 @@ export function recordToAirport(record: AirportRecord): Airport {
 export function getAirportFromCatalog(id: string): Airport {
   const record = byId.get(id.toUpperCase());
   if (!record) {
-    const fallback = byId.get("KATL") ?? catalog[0];
+    const fallback = byId.get("KATL") ?? mapToRecord(globalCatalog[0]);
     if (!fallback) {
       throw new Error("Airport catalog not loaded");
     }
@@ -78,10 +156,30 @@ export function getAirportFromCatalog(id: string): Airport {
 
 export function searchAirports(query: string, limit = 50): AirportRecord[] {
   const q = query.trim().toUpperCase();
-  if (!q) return catalog.slice(0, limit);
+  const source = catalog.length > 0 ? catalog : globalCatalog.map(mapToRecord);
+
+  if (!q) return source.slice(0, limit);
+
+  if (searchPrefixIndex && q.length >= 2) {
+    const idPrefix = searchPrefixIndex.get(q.slice(0, Math.min(4, q.length)));
+    if (idPrefix) {
+      const results: AirportRecord[] = [];
+      for (const a of idPrefix) {
+        if (results.length >= limit) break;
+        if (
+          a.id.includes(q) ||
+          a.name.toUpperCase().includes(q) ||
+          a.municipality.toUpperCase().includes(q)
+        ) {
+          results.push(a);
+        }
+      }
+      if (results.length > 0) return results;
+    }
+  }
 
   const results: AirportRecord[] = [];
-  for (const a of catalog) {
+  for (const a of source) {
     if (results.length >= limit) break;
     const idMatch = a.id.includes(q);
     const nameMatch = a.name.toUpperCase().includes(q);
@@ -97,3 +195,5 @@ export function getCountryCodeForIcao(icao: string | null | undefined): string |
   if (!icao) return null;
   return byId.get(icao.trim().toUpperCase())?.country ?? null;
 }
+
+export { mapToRecord };

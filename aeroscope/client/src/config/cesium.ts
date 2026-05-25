@@ -22,6 +22,6 @@ export function setupCesiumIon(): void {
     return;
   }
   console.warn(
-    "[Aeroscope] VITE_CESIUM_ION_TOKEN is not set. Terrain and OSM buildings require Cesium ion.",
+    "[Aeroscope] VITE_CESIUM_ION_TOKEN is not set. Cesium Ion world terrain and imagery require a token.",
   );
 }

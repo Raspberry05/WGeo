@@ -1,5 +1,7 @@
 /**
- * Downloads OurAirports airports.csv and builds public/data/airports-index.json
+ * Downloads OurAirports airports.csv and builds:
+ *   public/data/airports-global.json  — large + medium (map dots)
+ *   public/data/airports-index.json   — full catalog (search / metadata)
  * Run: node scripts/build-airport-catalog.mjs
  */
 import { writeFileSync, mkdirSync } from "fs";
@@ -8,7 +10,8 @@ import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const outDir = join(__dirname, "../public/data");
-const outFile = join(outDir, "airports-index.json");
+const indexFile = join(outDir, "airports-index.json");
+const globalFile = join(outDir, "airports-global.json");
 
 const CSV_URL =
   "https://davidmegginson.github.io/ourairports-data/airports.csv";
@@ -18,6 +21,8 @@ const INCLUDED_TYPES = new Set([
   "medium_airport",
   "small_airport",
 ]);
+
+const GLOBAL_TYPES = new Set(["large_airport", "medium_airport"]);
 
 function parseCsvLine(line) {
   const result = [];
@@ -60,6 +65,8 @@ const csv = await res.text();
 const rows = parseCsv(csv);
 
 const airports = [];
+const globalAirports = [];
+
 for (const row of rows) {
   const type = row.type;
   if (!INCLUDED_TYPES.has(type)) continue;
@@ -71,7 +78,7 @@ for (const row of rows) {
   const lon = parseFloat(row.longitude_deg);
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
 
-  airports.push({
+  const full = {
     id: ident,
     name: (row.name || ident).trim(),
     lat,
@@ -79,11 +86,19 @@ for (const row of rows) {
     country: (row.iso_country || "").trim().toUpperCase(),
     type,
     municipality: (row.municipality || "").trim(),
-  });
+  };
+  airports.push(full);
+
+  if (GLOBAL_TYPES.has(type)) {
+    globalAirports.push({ id: ident, lat, lon, type });
+  }
 }
 
 airports.sort((a, b) => a.id.localeCompare(b.id));
+globalAirports.sort((a, b) => a.id.localeCompare(b.id));
 
 mkdirSync(outDir, { recursive: true });
-writeFileSync(outFile, JSON.stringify(airports));
-console.log(`Wrote ${airports.length} airports to ${outFile}`);
+writeFileSync(indexFile, JSON.stringify(airports));
+writeFileSync(globalFile, JSON.stringify(globalAirports));
+console.log(`Wrote ${airports.length} airports to ${indexFile}`);
+console.log(`Wrote ${globalAirports.length} airports to ${globalFile}`);

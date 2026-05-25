@@ -1,50 +1,20 @@
 import {
-  Cartesian3,
-  Cesium3DTileStyle,
-  createOsmBuildingsAsync,
   createWorldTerrainAsync,
+  Ion,
   IonImageryProvider,
   Material,
-  type Cesium3DTileset,
   type Viewer,
 } from "cesium";
-import {
-  BUILDING_STYLE_COLORS,
-  SCENE_PALETTE,
-} from "../config/scenePalette";
-import type { Airport } from "../data/airports";
-import { getAirport } from "../data/airports";
+import { CESIUM_ION_TOKEN } from "../config/cesium";
+import { SCENE_PALETTE } from "../config/scenePalette";
+import { terrainProviderSupportsSampling } from "./airportTerrainHeight";
 
-function airportCenterVec3(airport: Airport): string {
-  const center = Cartesian3.fromDegrees(airport.lon, airport.lat, 0);
-  return `vec3(${center.x}, ${center.y}, ${center.z})`;
-}
-
-export function buildBuildingStyle(activeAirportId: string): Cesium3DTileStyle {
-  const active = getAirport(activeAirportId);
-  const center = airportCenterVec3(active);
-  const radiusM = active.radiusKm * 1000;
-
-  return new Cesium3DTileStyle({
-    color: {
-      conditions: [
-        [
-          `defined(\${POSITION}) && distance(\${POSITION}, ${center}) < ${radiusM}`,
-          `color('${BUILDING_STYLE_COLORS.active}', 0.95)`,
-        ],
-        ["true", `color('${BUILDING_STYLE_COLORS.default}', 0.85)`],
-      ],
-    },
-  });
-}
-
-export async function initCesiumScene(
-  viewer: Viewer,
-  activeAirportId: string,
-): Promise<{
-  buildings: Cesium3DTileset | null;
+export type CesiumSceneHandle = {
+  terrainReady: boolean;
   destroy: () => void;
-}> {
+};
+
+export async function initCesiumScene(viewer: Viewer): Promise<CesiumSceneHandle> {
   const { scene } = viewer;
 
   scene.backgroundColor = SCENE_PALETTE.sky.clone();
@@ -68,45 +38,41 @@ export async function initCesiumScene(
 
   viewer.imageryLayers.removeAll();
 
-  let buildings: Cesium3DTileset | null = null;
+  let terrainReady = false;
 
   try {
     const imagery = await IonImageryProvider.fromAssetId(3830186);
     viewer.imageryLayers.addImageryProvider(imagery);
-
-    viewer.terrainProvider = await createWorldTerrainAsync({
-      requestWaterMask: false,
-      requestVertexNormals: false,
-    });
-
-    buildings = await createOsmBuildingsAsync({
-      defaultColor: SCENE_PALETTE.buildingsDefault.clone(),
-      showOutline: true,
-      style: buildBuildingStyle(activeAirportId),
-    });
-    buildings.show = true;
-    scene.primitives.add(buildings);
   } catch (error) {
-    console.error("[Aeroscope] Scene init failed:", error);
+    console.warn("[Aeroscope] Ion imagery failed; globe may have no basemap:", error);
+  }
+
+  if (!CESIUM_ION_TOKEN && !Ion.defaultAccessToken) {
+    console.warn(
+      "[Aeroscope] No Cesium Ion token — keeping ellipsoid terrain. Set VITE_CESIUM_ION_TOKEN for 3D terrain.",
+    );
+  } else {
+    try {
+      viewer.terrainProvider = await createWorldTerrainAsync({
+        requestWaterMask: false,
+        requestVertexNormals: false,
+      });
+      terrainReady = terrainProviderSupportsSampling(viewer.terrainProvider);
+      if (!terrainReady) {
+        console.warn("[Aeroscope] Terrain provider loaded but does not support height sampling.");
+      }
+    } catch (error) {
+      console.error(
+        "[Aeroscope] World terrain failed (check VITE_CESIUM_ION_TOKEN and network). Using ellipsoid:",
+        error,
+      );
+    }
   }
 
   return {
-    buildings,
+    terrainReady,
     destroy: () => {
       scene.globe.material = undefined;
-      if (buildings) {
-        scene.primitives.remove(buildings);
-        buildings.destroy();
-      }
     },
   };
-}
-
-export function updateBuildingStyle(
-  tileset: Cesium3DTileset | null,
-  activeAirportId: string,
-): void {
-  if (tileset) {
-    tileset.style = buildBuildingStyle(activeAirportId);
-  }
 }
