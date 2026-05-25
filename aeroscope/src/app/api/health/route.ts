@@ -1,4 +1,4 @@
-import { type NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getStatesCacheSize } from "@/lib/opensky/states";
 import {
   isOpenSkyConfigured,
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export const preferredRegion = ["fra1", "cdg1", "ams1", "lhr1"];
 export const maxDuration = 30;
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   const auth = await probeOpenSkyAuth();
 
   return NextResponse.json({
