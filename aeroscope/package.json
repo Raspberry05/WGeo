@@ -1,0 +1,39 @@
+{
+  "name": "aeroscope",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "node scripts/copy-cesium.mjs && next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "copy:cesium": "node scripts/copy-cesium.mjs",
+    "postinstall": "node scripts/copy-cesium.mjs"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.100.14",
+    "cesium": "^1.141.0",
+    "country-flag-icons": "^1.6.17",
+    "i18n-iso-countries": "^7.14.0",
+    "next": "^15.5.4",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "resium": "^1.21.1",
+    "three": "^0.184.0",
+    "zustand": "^5.0.13"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.28.0",
+    "@types/node": "^24.12.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "eslint": "^9.28.0",
+    "eslint-config-next": "^15.5.4",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.6.0",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.59.2",
+    "webpack": "^5.99.9"
+  }
+}
