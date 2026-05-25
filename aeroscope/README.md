@@ -47,4 +47,4 @@ Open http://localhost:3000.
 
 Set **Root Directory** to `aeroscope`. See [DEPLOY.md](./DEPLOY.md).
 
-re-deploy
+re-deploy.
