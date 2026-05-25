@@ -4,6 +4,7 @@ import {
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
 } from "cesium";
+import { airportIdFromPickId } from "./AirportEntities";
 import { enrichSelectedAircraft } from "../../services/aircraftEnrichment";
 import { useAircraftStore } from "../../store/useAircraftStore";
 import { useCesiumStore } from "../../store/useCesiumStore";
@@ -21,10 +22,6 @@ function entityIdString(id: unknown): string | null {
   return String(id);
 }
 
-function isAirportEntityId(id: string): boolean {
-  return id.startsWith("airport-");
-}
-
 export function ScenePickHandler() {
   const viewer = useCesiumStore((s) => s.viewer);
 
@@ -34,32 +31,31 @@ export function ScenePickHandler() {
     const handler = new ScreenSpaceEventHandler(viewer.canvas);
 
     handler.setInputAction((click: { position: Cartesian2 }) => {
-      const picks = viewer.scene.drillPick(click.position, 8);
+      const picks = viewer.scene.drillPick(click.position, 12);
       const state = useAircraftStore.getState();
 
       for (const pick of picks) {
         const id = entityIdString(pick.id);
-        if (!id || isAirportEntityId(id)) continue;
+        if (!id) continue;
 
         const ac = state.aircraft[id];
-        if (!ac) continue;
-
-        const isSelected = state.selectedId === id;
-        if (isSelected) {
-          useAircraftStore.getState().selectAircraft(null);
-        } else {
-          useAircraftStore.getState().selectAircraft(id);
-          useAircraftStore.getState().requestCameraFly("aircraft", id);
-          void enrichSelectedAircraft(id);
+        if (ac) {
+          const isSelected = state.selectedId === id;
+          if (isSelected) {
+            useAircraftStore.getState().selectAircraft(null);
+          } else {
+            useAircraftStore.getState().selectAircraft(id);
+            useAircraftStore.getState().requestCameraFly("aircraft", id);
+            void enrichSelectedAircraft(id);
+          }
+          return;
         }
-        return;
       }
 
       for (const pick of picks) {
-        const id = entityIdString(pick.id);
-        if (!id || !isAirportEntityId(id)) continue;
+        const airportId = airportIdFromPickId(pick.id);
+        if (!airportId) continue;
 
-        const airportId = id.replace(/^airport-/, "");
         if (
           airportId === state.activeAirportId &&
           !state.activeAirportPickEnabled

@@ -1,5 +1,12 @@
 import { FILTERABLE_CATEGORIES } from "../../utils/aircraftCategory";
 import { useAircraftStore } from "../../store/useAircraftStore";
+import {
+  hudAccent,
+  hudMuted,
+  hudPanelStyle,
+  HUD_FONT_SM,
+  hudText,
+} from "./hudTheme";
 
 export function CategoryFilter() {
   const filter = useAircraftStore((s) => s.categoryFilter);
@@ -21,26 +28,20 @@ export function CategoryFilter() {
   return (
     <div
       style={{
-        position: "absolute",
-        top: "340px",
-        left: "8px",
-        width: "200px",
-        background: "rgba(0,8,16,0.88)",
-        border: "1px solid #1a3a2a",
-        borderRadius: "4px",
-        fontFamily: "monospace",
-        fontSize: "9px",
-        zIndex: 100,
-        padding: "6px 8px",
+        ...hudPanelStyle,
+        flexShrink: 0,
+        padding: "10px 12px",
+        fontSize: HUD_FONT_SM,
       }}
     >
       <div
         style={{
-          color: "#4a6a5a",
+          color: hudMuted,
           letterSpacing: "1px",
-          marginBottom: "6px",
+          marginBottom: "8px",
           display: "flex",
           justifyContent: "space-between",
+          alignItems: "center",
         }}
       >
         <span>CATEGORY</span>
@@ -50,16 +51,17 @@ export function CategoryFilter() {
           style={{
             background: "transparent",
             border: "none",
-            color: filter ? "#7a9a8a" : "#00ff88",
+            color: filter ? hudText : hudAccent,
             cursor: "pointer",
             fontFamily: "inherit",
-            fontSize: "9px",
+            fontSize: HUD_FONT_SM,
+            padding: "4px 8px",
           }}
         >
           ALL
         </button>
       </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
         {FILTERABLE_CATEGORIES.map(({ code, label }) => {
           const on = !filter || filter.includes(code);
           return (
@@ -68,13 +70,14 @@ export function CategoryFilter() {
               type="button"
               onClick={() => toggle(code)}
               style={{
-                padding: "3px 6px",
-                borderRadius: "2px",
-                border: `1px solid ${on ? "#00ff88" : "#1a3a2a"}`,
+                padding: "6px 10px",
+                borderRadius: "4px",
+                border: `1px solid ${on ? hudAccent : "#1a3a2a"}`,
                 background: on ? "rgba(0,255,136,0.12)" : "transparent",
-                color: on ? "#00ff88" : "#5a6a6a",
+                color: on ? hudAccent : "#5a6a6a",
                 cursor: "pointer",
                 fontFamily: "inherit",
+                fontSize: HUD_FONT_SM,
               }}
             >
               {label}

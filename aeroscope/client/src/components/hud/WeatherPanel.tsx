@@ -7,12 +7,15 @@ import {
   formatTemperatureCelsius,
 } from "../../utils/flightUnits";
 import { useAircraftStore } from "../../store/useAircraftStore";
+import { HUD_FONT_SM, hudMuted } from "./hudTheme";
 
 export function WeatherPanel() {
   const activeAirportId = useAircraftStore((s) => s.activeAirportId);
+  const catalogReady = useAircraftStore((s) => s.airportCatalogReady);
   const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
 
   useEffect(() => {
+    if (!catalogReady) return;
     const airport = getAirport(activeAirportId);
     let cancelled = false;
     void fetchWeather(airport.lat, airport.lon).then((w) => {
@@ -21,11 +24,11 @@ export function WeatherPanel() {
     return () => {
       cancelled = true;
     };
-  }, [activeAirportId]);
+  }, [activeAirportId, catalogReady]);
 
   if (!weather) {
     return (
-      <span style={{ color: "#4a6a5a", fontSize: "10px" }}>WX · …</span>
+      <span style={{ color: hudMuted, fontSize: HUD_FONT_SM }}>WX · …</span>
     );
   }
 
@@ -34,9 +37,9 @@ export function WeatherPanel() {
       style={{
         display: "inline-flex",
         alignItems: "center",
-        gap: "8px",
+        gap: "10px",
         color: "#8aa0b0",
-        fontSize: "10px",
+        fontSize: HUD_FONT_SM,
         letterSpacing: "0.5px",
       }}
     >

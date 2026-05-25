@@ -16,10 +16,15 @@ import { useAircraftStore } from "../store/useAircraftStore";
 export const MIN_ZOOM_M = 80;
 export const MAX_ZOOM_M = 12_000_000;
 export const FLY_DURATION_S = 2.0;
-export const FOLLOW_MIN_RANGE_M = 200;
-export const FOLLOW_MAX_RANGE_M = 8000;
+export const FOLLOW_MIN_RANGE_M = 150;
+export const FOLLOW_MAX_RANGE_M = 50_000;
+export const FOLLOW_DEFAULT_RANGE_M = 1200;
 
 const FLY_EASING = EasingFunction.QUADRATIC_IN_OUT;
+
+let followOrbitRangeM = FOLLOW_DEFAULT_RANGE_M;
+let lastFollowAircraftId: string | null = null;
+let syncingFollowRange = false;
 
 export function configureCameraController(viewer: Viewer): void {
   const ctrl = viewer.scene.screenSpaceCameraController;
@@ -55,6 +60,40 @@ export function setFollowControllerMode(viewer: Viewer, follow: boolean): void {
 
 export function releaseCameraLock(camera: Camera): void {
   camera.lookAtTransform(Matrix4.IDENTITY);
+}
+
+function clampFollowRange(range: number): number {
+  return CesiumMath.clamp(range, FOLLOW_MIN_RANGE_M, FOLLOW_MAX_RANGE_M);
+}
+
+function getAircraftCenter(icao24: string): Cartesian3 | null {
+  const ac = useAircraftStore.getState().aircraft[icao24];
+  if (!ac) return null;
+  const geo = getInterpolatedGeoState(ac);
+  return Cartesian3.fromDegrees(geo.lon, geo.lat, geo.altMeters);
+}
+
+function syncFollowRangeFromCamera(viewer: Viewer, icao24: string): void {
+  const center = getAircraftCenter(icao24);
+  if (!center) return;
+  const dist = Cartesian3.distance(viewer.camera.position, center);
+  if (Number.isFinite(dist) && dist > 0) {
+    followOrbitRangeM = clampFollowRange(dist);
+  }
+}
+
+function resetFollowRangeForAircraft(icao24: string, viewer: Viewer): void {
+  if (lastFollowAircraftId === icao24) return;
+  lastFollowAircraftId = icao24;
+  const center = getAircraftCenter(icao24);
+  if (!center) {
+    followOrbitRangeM = FOLLOW_DEFAULT_RANGE_M;
+    return;
+  }
+  const dist = Cartesian3.distance(viewer.camera.position, center);
+  followOrbitRangeM = clampFollowRange(
+    Number.isFinite(dist) && dist > 0 ? dist : FOLLOW_DEFAULT_RANGE_M,
+  );
 }
 
 function clampHeight(camera: Camera): void {
@@ -127,25 +166,25 @@ export function flyToAircraft(
   );
 }
 
-function followRangeFromCamera(camera: Camera, center: Cartesian3): number {
-  const dist = Cartesian3.distance(camera.position, center);
-  return CesiumMath.clamp(dist, FOLLOW_MIN_RANGE_M, FOLLOW_MAX_RANGE_M);
-}
-
-/** Orbit around aircraft; preserves user heading/pitch, updates center only. */
+/** Orbit around aircraft; preserves user heading/pitch/range, updates center only. */
 export function updateFollowOrbit(viewer: Viewer, icao24: string): void {
-  const ac = useAircraftStore.getState().aircraft[icao24];
-  if (!ac) return;
+  const center = getAircraftCenter(icao24);
+  if (!center) return;
 
-  const geo = getInterpolatedGeoState(ac);
-  const center = Cartesian3.fromDegrees(geo.lon, geo.lat, geo.altMeters);
+  resetFollowRangeForAircraft(icao24, viewer);
+
   const { camera } = viewer;
-  const range = followRangeFromCamera(camera, center);
   const transform = Transforms.eastNorthUpToFixedFrame(center);
+  syncingFollowRange = true;
   camera.lookAtTransform(
     transform,
-    new HeadingPitchRange(camera.heading, camera.pitch, range),
+    new HeadingPitchRange(
+      camera.heading,
+      camera.pitch,
+      followOrbitRangeM,
+    ),
   );
+  syncingFollowRange = false;
 }
 
 export function attachCameraSystem(viewer: Viewer): () => void {
@@ -190,6 +229,18 @@ export function attachCameraSystem(viewer: Viewer): () => void {
 
   const onMoveEnd = () => {
     clampHeight(viewer.camera);
+    const { cameraMode, selectedId } = useAircraftStore.getState();
+    if (cameraMode === "follow" && selectedId) {
+      syncFollowRangeFromCamera(viewer, selectedId);
+    }
+  };
+
+  const onCameraChanged = () => {
+    if (syncingFollowRange) return;
+    const { cameraMode, selectedId } = useAircraftStore.getState();
+    if (cameraMode === "follow" && selectedId) {
+      syncFollowRangeFromCamera(viewer, selectedId);
+    }
   };
 
   const onTick = () => {
@@ -199,11 +250,13 @@ export function attachCameraSystem(viewer: Viewer): () => void {
       if (cameraMode === "follow") {
         setFollowControllerMode(viewer, true);
         if (selectedId) {
+          lastFollowAircraftId = null;
           updateFollowOrbit(viewer, selectedId);
         }
       } else {
         setFollowControllerMode(viewer, false);
         releaseCameraLock(viewer.camera);
+        lastFollowAircraftId = null;
       }
       lastCameraMode = cameraMode;
     }
@@ -217,9 +270,13 @@ export function attachCameraSystem(viewer: Viewer): () => void {
     if (state.cameraFlyToken !== prev.cameraFlyToken) {
       processFlyRequest();
     }
+    if (state.selectedId !== prev.selectedId && state.cameraMode === "follow") {
+      lastFollowAircraftId = null;
+    }
   });
 
   viewer.camera.moveEnd.addEventListener(onMoveEnd);
+  viewer.camera.changed.addEventListener(onCameraChanged);
   viewer.clock.onTick.addEventListener(onTick);
 
   if (!initialDone) {
@@ -241,6 +298,7 @@ export function attachCameraSystem(viewer: Viewer): () => void {
 
   return () => {
     viewer.camera.moveEnd.removeEventListener(onMoveEnd);
+    viewer.camera.changed.removeEventListener(onCameraChanged);
     viewer.clock.onTick.removeEventListener(onTick);
     unsubStore();
     setFollowControllerMode(viewer, false);

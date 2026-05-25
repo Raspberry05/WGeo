@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { formatUtcTime } from "../../utils/flightUnits";
+import { HUD_FONT_SM } from "./hudTheme";
 
 export function UtcClock() {
   const [utc, setUtc] = useState(formatUtcTime());
@@ -15,7 +16,7 @@ export function UtcClock() {
     <span
       style={{
         color: "#6a8a9a",
-        fontSize: "10px",
+        fontSize: HUD_FONT_SM,
         letterSpacing: "0.5px",
         fontVariantNumeric: "tabular-nums",
       }}

@@ -14,6 +14,15 @@ import {
   formatUtcDateTime,
 } from "../../utils/flightUnits";
 import { AlternatingWeight } from "./AlternatingWeight";
+import {
+  hudMuted,
+  hudPanelStyle,
+  HUD_FONT_LG,
+  HUD_FONT_MD,
+  HUD_FONT_SM,
+  HUD_INSPECTOR_WIDTH,
+  HUD_SIDEBAR_WIDTH,
+} from "./hudTheme";
 
 export function AircraftInspector() {
   const selectedId = useAircraftStore((s) => s.selectedId);
@@ -51,14 +60,18 @@ export function AircraftInspector() {
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        padding: "4px 0",
+        padding: "6px 0",
         borderBottom: "1px solid #0d1f10",
-        gap: "8px",
+        gap: "10px",
       }}
     >
-      <span style={{ color: "#4a6a5a", fontSize: "10px" }}>{label}</span>
+      <span style={{ color: hudMuted, fontSize: HUD_FONT_SM }}>{label}</span>
       <span
-        style={{ color: "#ccddcc", fontFamily: "monospace", fontSize: "11px" }}
+        style={{
+          color: "#ccddcc",
+          fontFamily: "monospace",
+          fontSize: HUD_FONT_MD,
+        }}
       >
         {value}
       </span>
@@ -70,32 +83,32 @@ export function AircraftInspector() {
       style={{
         position: "absolute",
         bottom: "16px",
-        left: "8px",
-        width: "200px",
+        left: HUD_SIDEBAR_WIDTH + 16,
+        width: HUD_INSPECTOR_WIDTH,
         zIndex: 101,
-        background: "rgba(0,8,16,0.92)",
+        ...hudPanelStyle,
         border: `1px solid ${color}44`,
-        borderTop: `2px solid ${color}`,
-        borderRadius: "4px",
-        padding: "10px",
+        borderTop: `3px solid ${color}`,
+        padding: "14px",
         fontFamily: "monospace",
+        pointerEvents: "auto",
       }}
     >
-      <div style={{ marginBottom: "8px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <CountryFlagByName countryName={ac.originCountry} size={20} />
+      <div style={{ marginBottom: "10px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <CountryFlagByName countryName={ac.originCountry} size={24} />
           <div>
             <div
               style={{
                 color,
-                fontSize: "14px",
+                fontSize: HUD_FONT_LG,
                 fontWeight: "bold",
                 letterSpacing: "1px",
               }}
             >
               {ac.callsign}
             </div>
-            <div style={{ color: "#4a6a5a", fontSize: "9px" }}>
+            <div style={{ color: hudMuted, fontSize: HUD_FONT_SM }}>
               {ac.icao24.toUpperCase()}
             </div>
           </div>
@@ -107,10 +120,10 @@ export function AircraftInspector() {
       <Field
         label="ROUTE"
         value={
-          <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
             <AirportFlag icao={ac.originAirport} />
             {origin}
-            <span style={{ color: "#4a6a5a" }}>→</span>
+            <span style={{ color: hudMuted }}>→</span>
             <AirportFlag icao={ac.destinationAirport} />
             {dest}
           </span>
@@ -128,20 +141,14 @@ export function AircraftInspector() {
       />
       <Field label="COUNTRY" value={ac.originCountry || "—"} />
       <Field label="STATUS" value={ac.status.toUpperCase()} />
-      <Field
-        label="ALTITUDE"
-        value={formatAltitudeFeet(ac.altitudeMeters)}
-      />
+      <Field label="ALTITUDE" value={formatAltitudeFeet(ac.altitudeMeters)} />
       <Field label="SPEED" value={formatSpeedKnots(ac.velocity)} />
       <Field label="HEADING" value={`${Math.round(ac.heading)}°`} />
       <Field
         label="WEIGHT (EST)"
         value={<AlternatingWeight massKg={massKg} />}
       />
-      <Field
-        label="LAST FIX"
-        value={formatUtcDateTime(ac.lastUpdated)}
-      />
+      <Field label="LAST FIX" value={formatUtcDateTime(ac.lastUpdated)} />
 
       <button
         type="button"
@@ -149,20 +156,20 @@ export function AircraftInspector() {
           setCameraMode(cameraMode === "follow" ? "free" : "follow")
         }
         style={{
-          marginTop: "8px",
+          marginTop: "12px",
           width: "100%",
-          padding: "5px",
+          padding: "10px",
           background: cameraMode === "follow" ? `${color}22` : "transparent",
           border: `1px solid ${color}66`,
           color,
           fontFamily: "monospace",
-          fontSize: "10px",
+          fontSize: HUD_FONT_SM,
           cursor: "pointer",
-          borderRadius: "2px",
+          borderRadius: "4px",
           letterSpacing: "1px",
         }}
       >
-        {cameraMode === "follow" ? "◉ FOLLOWING" : "○ FOLLOW"}
+        {cameraMode === "follow" ? "FOLLOWING" : "FOLLOW"}
       </button>
     </div>
   );

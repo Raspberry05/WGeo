@@ -9,6 +9,16 @@ import {
   countryNameToIso2,
 } from "../../utils/countryFlags";
 import { formatAltitudeFeet, formatSpeedKnots } from "../../utils/flightUnits";
+import {
+  hudAccent,
+  hudMuted,
+  HUD_FONT_LG,
+  HUD_FONT_MD,
+  HUD_FONT_SM,
+  HUD_SIDEBAR_WIDTH,
+  HUD_STATUS_BAR_MIN_HEIGHT,
+  hudText,
+} from "./hudTheme";
 import { UtcClock } from "./UtcClock";
 import { WeatherPanel } from "./WeatherPanel";
 
@@ -26,8 +36,9 @@ export function StatusBar() {
   const activeAirportPickEnabled = useAircraftStore(
     (s) => s.activeAirportPickEnabled,
   );
+  const catalogReady = useAircraftStore((s) => s.airportCatalogReady);
 
-  const airport = getAirport(activeAirportId);
+  const airport = catalogReady ? getAirport(activeAirportId) : null;
   const selected = selectedId ? aircraft[selectedId] : null;
 
   const total = Object.keys(aircraft).length;
@@ -43,7 +54,7 @@ export function StatusBar() {
 
   const connectionColor =
     status === "LIVE"
-      ? "#00ff88"
+      ? hudAccent
       : status === "SIMULATED"
         ? "#888a94"
         : "#404248";
@@ -63,60 +74,63 @@ export function StatusBar() {
         top: 0,
         left: 0,
         right: 0,
-        minHeight: "36px",
+        minHeight: HUD_STATUS_BAR_MIN_HEIGHT,
         background: "rgba(0,8,16,0.92)",
         borderBottom: "1px solid #1a3a2a",
         display: "flex",
         alignItems: "center",
         flexWrap: "wrap",
-        padding: "6px 16px 6px 216px",
-        gap: "12px 20px",
+        padding: `10px 20px 10px ${HUD_SIDEBAR_WIDTH + 16}px`,
+        gap: "14px 22px",
         fontFamily: "monospace",
-        fontSize: "11px",
-        color: "#7a9a8a",
-        zIndex: 100,
+        fontSize: HUD_FONT_SM,
+        color: hudText,
+        zIndex: 110,
+        boxSizing: "border-box",
       }}
     >
       <span
         style={{
-          color: "#00ff88",
+          color: hudAccent,
           fontWeight: "bold",
           letterSpacing: "2px",
-          fontSize: "13px",
+          fontSize: HUD_FONT_LG,
         }}
       >
-        ✈ AEROSCOPE
+        AEROSCOPE
       </span>
 
-      <div style={{ width: "1px", height: "20px", background: "#1a3a2a" }} />
+      <div style={{ width: "1px", height: "24px", background: "#1a3a2a" }} />
 
-      <span>
-        {airport.id} · {airport.name.toUpperCase()}
-        {!activeAirportPickEnabled && (
-          <span style={{ color: "#5a8a6a", marginLeft: "8px" }}>
-            (aircraft pick mode)
-          </span>
-        )}
-      </span>
+      {airport && (
+        <span style={{ fontSize: HUD_FONT_MD }}>
+          {airport.id} · {airport.name.toUpperCase()}
+          {!activeAirportPickEnabled && (
+            <span style={{ color: "#5a8a6a", marginLeft: "10px" }}>
+              (aircraft pick mode)
+            </span>
+          )}
+        </span>
+      )}
 
       <WeatherPanel />
-
       <UtcClock />
 
       {selected && (
         <>
-          <div style={{ width: "1px", height: "20px", background: "#1a3a2a" }} />
+          <div style={{ width: "1px", height: "24px", background: "#1a3a2a" }} />
 
           <span
             style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: "6px",
+              gap: "8px",
               flexWrap: "wrap",
+              fontSize: HUD_FONT_MD,
             }}
           >
-            <CountryFlagByName countryName={selected.originCountry} size={16} />
-            <span style={{ color: "#00ff88", fontWeight: "bold" }}>
+            <CountryFlagByName countryName={selected.originCountry} size={20} />
+            <span style={{ color: hudAccent, fontWeight: "bold" }}>
               {selected.callsign}
             </span>
             <span style={{ color: "#5a7a6a" }}>|</span>
@@ -136,37 +150,39 @@ export function StatusBar() {
               </>
             )}
             <span style={{ color: "#5a7a6a" }}>|</span>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
               <AirportFlag icao={selected.originAirport} />
               <span>{formatAirportCode(selected.originAirport)}</span>
-              <span style={{ color: "#4a6a5a" }}>→</span>
+              <span style={{ color: hudMuted }}>→</span>
               <AirportFlag icao={selected.destinationAirport} />
               <span>{formatAirportCode(selected.destinationAirport)}</span>
             </span>
             {regIso && (
-              <FlagIcon iso2={regIso} size={14} title={selected.originCountry} />
+              <FlagIcon iso2={regIso} size={18} title={selected.originCountry} />
             )}
           </span>
         </>
       )}
 
-      <div style={{ flex: 1 }} />
+      <div style={{ flex: 1, minWidth: "8px" }} />
 
-      <span>
+      <span style={{ fontSize: HUD_FONT_MD }}>
         {categoryFilter?.length ? `${filtered}/${total}` : total} AIRCRAFT
       </span>
 
-      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
         <div
           style={{
-            width: "7px",
-            height: "7px",
+            width: "9px",
+            height: "9px",
             borderRadius: "50%",
             background: connectionColor,
-            boxShadow: `0 0 6px ${connectionColor}`,
+            boxShadow: `0 0 8px ${connectionColor}`,
           }}
         />
-        <span style={{ color: connectionColor }}>{status}</span>
+        <span style={{ color: connectionColor, fontSize: HUD_FONT_MD }}>
+          {status}
+        </span>
       </div>
     </div>
   );

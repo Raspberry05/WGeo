@@ -75,7 +75,7 @@ export async function initCesiumScene(
     viewer.imageryLayers.addImageryProvider(imagery);
 
     viewer.terrainProvider = await createWorldTerrainAsync({
-      requestWaterMask: true,
+      requestWaterMask: false,
       requestVertexNormals: false,
     });
 

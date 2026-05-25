@@ -39,8 +39,10 @@ interface AircraftStore {
   cameraFlyTarget: CameraFlyTarget;
   cameraFlyTargetId: string | null;
   categoryFilter: number[] | null;
+  airportCatalogReady: boolean;
 
   setAircraft: (aircraft: Record<string, AircraftState>) => void;
+  setAirportCatalogReady: (ready: boolean) => void;
   upsertAircraft: (ac: AircraftState) => void;
   enrichAircraft: (id: string, patch: Partial<AircraftState>) => void;
   selectAircraft: (id: string | null) => void;
@@ -63,8 +65,10 @@ export const useAircraftStore = create<AircraftStore>((set) => ({
   cameraFlyTarget: "airport",
   cameraFlyTargetId: DEFAULT_AIRPORT_ID,
   categoryFilter: null,
+  airportCatalogReady: false,
 
   setAircraft: (aircraft) => set({ aircraft }),
+  setAirportCatalogReady: (airportCatalogReady) => set({ airportCatalogReady }),
   upsertAircraft: (ac) =>
     set((state) => ({
       aircraft: { ...state.aircraft, [ac.id]: ac },

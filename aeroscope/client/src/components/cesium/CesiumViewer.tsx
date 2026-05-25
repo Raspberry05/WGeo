@@ -14,9 +14,10 @@ export function CesiumViewer() {
   const buildingsRef = useRef<Cesium3DTileset | null>(null);
   const setViewer = useCesiumStore((s) => s.setViewer);
   const activeAirportId = useAircraftStore((s) => s.activeAirportId);
+  const catalogReady = useAircraftStore((s) => s.airportCatalogReady);
 
   useEffect(() => {
-    if (!containerRef.current || viewerRef.current) return;
+    if (!containerRef.current || viewerRef.current || !catalogReady) return;
 
     setupCesiumIon();
 
@@ -64,13 +65,13 @@ export function CesiumViewer() {
       }
       setViewer(null);
     };
-  }, [setViewer]);
+  }, [setViewer, catalogReady]);
 
   useEffect(() => {
-    if (buildingsRef.current) {
+    if (buildingsRef.current && catalogReady) {
       updateBuildingStyle(buildingsRef.current, activeAirportId);
     }
-  }, [activeAirportId]);
+  }, [activeAirportId, catalogReady]);
 
   return (
     <div
