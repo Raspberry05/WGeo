@@ -35,8 +35,13 @@ Optional env on Railway:
 
 | Variable | Default |
 |----------|---------|
-| `UPSTREAM_TIMEOUT_MS` | `12000` |
+| `UPSTREAM_TIMEOUT_MS` | `20000` |
 | `STATES_CACHE_TTL_MS` | `6000` |
+| `NODE_OPTIONS` | `--dns-result-order=ipv4first` |
+
+After deploy, open **`/diagnose`** or **`/health`** — `opensky.states.ok` should be `true` with `ms` under a few seconds. If `ok: false` and timeout errors, OpenSky is unreachable from Railway (try EU region or another host).
+
+**GET /token → 404/405** is expected; Vercel must use **POST** with OAuth form body.
 
 ## Local
 
