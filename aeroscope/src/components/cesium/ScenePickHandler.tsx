@@ -1,10 +1,11 @@
 import { useEffect } from "react";
+import type { Viewer } from "cesium";
 import {
   Cartesian2,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
 } from "cesium";
-import { airportIdFromPickId } from "../../utils/airportPick";
+import { airportIdFromPicks } from "../../utils/airportPick";
 import { enrichSelectedAircraft } from "../../services/aircraftEnrichment";
 import { useAircraftStore } from "../../store/useAircraftStore";
 import { useCesiumStore } from "../../store/useCesiumStore";
@@ -23,6 +24,57 @@ function entityIdString(id: unknown): string | null {
   return String(id);
 }
 
+function handleScenePick(viewer: Viewer, position: Cartesian2): void {
+  const picks = viewer.scene.drillPick(position, 12);
+  const state = useAircraftStore.getState();
+
+  for (const pick of picks) {
+    const id = entityIdString(pick.id);
+    if (!id) continue;
+
+    const ac = state.aircraft[id];
+    if (ac) {
+      const isSelected = state.selectedId === id;
+      if (isSelected) {
+        useAircraftStore.getState().selectAircraft(null);
+      } else {
+        useAircraftStore.getState().selectAircraft(id);
+        useAircraftStore.getState().requestCameraFly("aircraft", id);
+        void enrichSelectedAircraft(id);
+      }
+      return;
+    }
+  }
+
+  const airportId = airportIdFromPicks(picks);
+  if (!airportId) return;
+
+  if (
+    airportId === state.activeAirportId &&
+    !state.activeAirportPickEnabled
+  ) {
+    return;
+  }
+
+  useAircraftStore.getState().setActiveAirport(airportId);
+  useAircraftStore.getState().requestCameraFly("airport", airportId);
+}
+
+function resolveHoverAirport(
+  viewer: Viewer,
+  position: Cartesian2,
+): string | null {
+  const picks = viewer.scene.drillPick(position, 8);
+  const state = useAircraftStore.getState();
+
+  for (const pick of picks) {
+    const id = entityIdString(pick.id);
+    if (id && state.aircraft[id]) return null;
+  }
+
+  return airportIdFromPicks(picks);
+}
+
 export function ScenePickHandler() {
   const viewer = useCesiumStore((s) => s.viewer);
 
@@ -30,47 +82,53 @@ export function ScenePickHandler() {
     if (!isViewerLive(viewer)) return;
 
     const handler = new ScreenSpaceEventHandler(viewer.canvas);
+    let hoverRaf = 0;
 
-    handler.setInputAction((click: { position: Cartesian2 }) => {
-      const picks = viewer.scene.drillPick(click.position, 12);
-      const state = useAircraftStore.getState();
+    const onPick = (position: Cartesian2) => {
+      handleScenePick(viewer, position);
+    };
 
-      for (const pick of picks) {
-        const id = entityIdString(pick.id);
-        if (!id) continue;
+    const useTouchPick =
+      typeof window !== "undefined" &&
+      window.matchMedia("(pointer: coarse)").matches;
+    const pickEvent = useTouchPick
+      ? ScreenSpaceEventType.LEFT_DOWN
+      : ScreenSpaceEventType.LEFT_CLICK;
 
-        const ac = state.aircraft[id];
-        if (ac) {
-          const isSelected = state.selectedId === id;
-          if (isSelected) {
-            useAircraftStore.getState().selectAircraft(null);
-          } else {
-            useAircraftStore.getState().selectAircraft(id);
-            useAircraftStore.getState().requestCameraFly("aircraft", id);
-            void enrichSelectedAircraft(id);
+    handler.setInputAction(
+      (evt: { position: Cartesian2 }) => onPick(evt.position),
+      pickEvent,
+    );
+
+    handler.setInputAction((movement: { endPosition: Cartesian2 }) => {
+      if (hoverRaf) cancelAnimationFrame(hoverRaf);
+      hoverRaf = requestAnimationFrame(() => {
+        hoverRaf = 0;
+        const airportId = resolveHoverAirport(viewer, movement.endPosition);
+        const canvas = viewer.canvas;
+        if (airportId) {
+          const activeId = useAircraftStore.getState().activeAirportId;
+          if (airportId === activeId) {
+            useAircraftStore.getState().setAirportHover(null, null);
+            canvas.style.cursor = "pointer";
+            return;
           }
-          return;
+          useAircraftStore.getState().setAirportHover(airportId, {
+            x: movement.endPosition.x,
+            y: movement.endPosition.y,
+          });
+          canvas.style.cursor = "pointer";
+        } else {
+          useAircraftStore.getState().setAirportHover(null, null);
+          canvas.style.cursor = "";
         }
-      }
-
-      for (const pick of picks) {
-        const airportId = airportIdFromPickId(pick.id);
-        if (!airportId) continue;
-
-        if (
-          airportId === state.activeAirportId &&
-          !state.activeAirportPickEnabled
-        ) {
-          return;
-        }
-
-        useAircraftStore.getState().setActiveAirport(airportId);
-        useAircraftStore.getState().requestCameraFly("airport", airportId);
-        return;
-      }
-    }, ScreenSpaceEventType.LEFT_CLICK);
+      });
+    }, ScreenSpaceEventType.MOUSE_MOVE);
 
     return () => {
+      if (hoverRaf) cancelAnimationFrame(hoverRaf);
+      viewer.canvas.style.cursor = "";
+      useAircraftStore.getState().setAirportHover(null, null);
       if (!handler.isDestroyed()) {
         handler.destroy();
       }

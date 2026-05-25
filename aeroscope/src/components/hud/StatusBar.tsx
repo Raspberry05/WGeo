@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { getAirport } from "../../data/airports";
 import { enrichSelectedAircraft } from "../../services/aircraftEnrichment";
 import { useAircraftStore } from "../../store/useAircraftStore";
+import { useHudStore } from "../../store/useHudStore";
 import {
   AirportFlag,
   CountryFlagByName,
@@ -16,14 +17,19 @@ import {
   HUD_FONT_LG,
   HUD_FONT_MD,
   HUD_FONT_SM,
-  HUD_SIDEBAR_WIDTH,
   HUD_STATUS_BAR_MIN_HEIGHT,
+  HUD_TOUCH_MIN,
   hudText,
+  statusBarPaddingLeft,
 } from "./hudTheme";
 import { UtcClock } from "./UtcClock";
 import { WeatherPanel } from "./WeatherPanel";
 
-export function StatusBar() {
+export interface StatusBarProps {
+  isMobile: boolean;
+}
+
+export function StatusBar({ isMobile }: StatusBarProps) {
   const status = useAircraftStore((s) => s.connectionStatus);
   const aircraft = useAircraftStore((s) => s.aircraft);
   const categoryFilter = useAircraftStore((s) => s.categoryFilter);
@@ -33,6 +39,7 @@ export function StatusBar() {
     (s) => s.activeAirportPickEnabled,
   );
   const catalogReady = useAircraftStore((s) => s.airportCatalogReady);
+  const toggleDrawer = useHudStore((s) => s.toggleMobileDrawer);
 
   const airport = catalogReady ? getAirport(activeAirportId) : null;
   const selected = selectedId ? aircraft[selectedId] : null;
@@ -73,6 +80,7 @@ export function StatusBar() {
 
   return (
     <div
+      className="hud-status-bar"
       style={{
         position: "absolute",
         top: 0,
@@ -84,8 +92,8 @@ export function StatusBar() {
         display: "flex",
         alignItems: "center",
         flexWrap: "wrap",
-        padding: `10px 20px 10px ${HUD_SIDEBAR_WIDTH + 16}px`,
-        gap: "14px 22px",
+        padding: `max(10px, env(safe-area-inset-top)) 16px 10px ${statusBarPaddingLeft(isMobile)}px`,
+        gap: isMobile ? "10px 14px" : "14px 22px",
         fontFamily: "monospace",
         fontSize: HUD_FONT_SM,
         color: hudText,
@@ -93,23 +101,56 @@ export function StatusBar() {
         boxSizing: "border-box",
       }}
     >
+      {isMobile && (
+        <button
+          type="button"
+          aria-label="Open menu"
+          onClick={toggleDrawer}
+          style={{
+            minWidth: HUD_TOUCH_MIN,
+            minHeight: HUD_TOUCH_MIN,
+            padding: "8px",
+            margin: "-8px 0",
+            background: "transparent",
+            border: "1px solid #1a3a2a",
+            borderRadius: "4px",
+            color: hudAccent,
+            fontFamily: "monospace",
+            fontSize: HUD_FONT_LG,
+            cursor: "pointer",
+            lineHeight: 1,
+          }}
+        >
+          ☰
+        </button>
+      )}
+
       <span
         style={{
           color: hudAccent,
           fontWeight: "bold",
           letterSpacing: "2px",
-          fontSize: HUD_FONT_LG,
+          fontSize: isMobile ? HUD_FONT_MD : HUD_FONT_LG,
         }}
       >
         AEROSCOPE
       </span>
 
-      <div style={{ width: "1px", height: "24px", background: "#1a3a2a" }} />
+      {!isMobile && (
+        <div style={{ width: "1px", height: "24px", background: "#1a3a2a" }} />
+      )}
 
       {airport && (
-        <span style={{ fontSize: HUD_FONT_MD }}>
-          {airport.id} · {airport.name.toUpperCase()}
-          {!activeAirportPickEnabled && (
+        <span
+          style={{
+            fontSize: HUD_FONT_MD,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            maxWidth: isMobile ? "140px" : undefined,
+          }}
+        >
+          {isMobile ? airport.id : `${airport.id} · ${airport.name.toUpperCase()}`}
+          {!activeAirportPickEnabled && !isMobile && (
             <span style={{ color: "#5a8a6a", marginLeft: "10px" }}>
               (aircraft pick mode)
             </span>
@@ -117,10 +158,14 @@ export function StatusBar() {
         </span>
       )}
 
-      <WeatherPanel />
-      <UtcClock />
+      {!isMobile && (
+        <>
+          <WeatherPanel />
+          <UtcClock />
+        </>
+      )}
 
-      {selected && (
+      {selected && !isMobile && (
         <>
           <div style={{ width: "1px", height: "24px", background: "#1a3a2a" }} />
 
@@ -176,8 +221,9 @@ export function StatusBar() {
 
       <div style={{ flex: 1, minWidth: "8px" }} />
 
-      <span style={{ fontSize: HUD_FONT_MD }}>
-        {categoryFilter?.length ? `${filtered}/${total}` : total} AIRCRAFT
+      <span style={{ fontSize: isMobile ? HUD_FONT_SM : HUD_FONT_MD }}>
+        {categoryFilter?.length ? `${filtered}/${total}` : total}
+        {!isMobile && " AIRCRAFT"}
       </span>
 
       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>

@@ -5,6 +5,21 @@ body {
   overflow: hidden;
 }
 
+.app-shell {
+  width: 100dvw;
+  height: 100dvh;
+  position: relative;
+  overflow: hidden;
+  background: #0d0d0f;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+  box-sizing: border-box;
+}
+
+.cesium-widget canvas {
+  touch-action: none;
+}
+
 .cesium-viewer,
 .cesium-viewer-cesiumWidgetContainer,
 .cesium-widget,

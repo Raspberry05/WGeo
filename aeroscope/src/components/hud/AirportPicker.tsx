@@ -5,16 +5,22 @@ import {
   selectActiveAirportId,
 } from "../../store/selectors";
 import { useAircraftStore } from "../../store/useAircraftStore";
+import { useHudStore } from "../../store/useHudStore";
 import { AirportPickerRow } from "./AirportPickerRow";
 import { HudPanel } from "./HudPanel";
 import { hudMuted, HUD_FONT_SM } from "./hudTheme";
 
 const SEARCH_DEBOUNCE_MS = 200;
 
-export function AirportPicker() {
+export interface AirportPickerProps {
+  isMobile?: boolean;
+}
+
+export function AirportPicker({ isMobile = false }: AirportPickerProps) {
   const activeAirportId = useAircraftStore(selectActiveAirportId);
   const setActiveAirport = useAircraftStore((s) => s.setActiveAirport);
   const requestCameraFly = useAircraftStore((s) => s.requestCameraFly);
+  const setMobileDrawerOpen = useHudStore((s) => s.setMobileDrawerOpen);
 
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS);
@@ -28,12 +34,17 @@ export function AirportPicker() {
     (icao: string) => {
       setActiveAirport(icao);
       requestCameraFly("airport", icao);
+      if (isMobile) setMobileDrawerOpen(false);
     },
-    [setActiveAirport, requestCameraFly],
+    [setActiveAirport, requestCameraFly, isMobile, setMobileDrawerOpen],
   );
 
   return (
-    <HudPanel title="AIRPORTS" maxHeight="38vh" minHeight="160px">
+    <HudPanel
+      title="AIRPORTS"
+      maxHeight={isMobile ? "min(38dvh, 280px)" : "38vh"}
+      minHeight={isMobile ? "120px" : "160px"}
+    >
       <div style={{ padding: "8px 10px", borderBottom: "1px solid #0d1f10" }}>
         <input
           type="search"

@@ -43,6 +43,8 @@ interface AircraftStore {
   cameraFlyTargetId: string | null;
   categoryFilter: number[] | null;
   airportCatalogReady: boolean;
+  hoveredAirportId: string | null;
+  hoverScreen: { x: number; y: number } | null;
 
   setAircraft: (aircraft: Record<string, AircraftState>) => void;
   setAirportCatalogReady: (ready: boolean) => void;
@@ -54,6 +56,10 @@ interface AircraftStore {
   setConnectionStatus: (s: "LIVE" | "SIMULATED" | "CONNECTING") => void;
   setCameraMode: (mode: CameraMode) => void;
   setCategoryFilter: (codes: number[] | null) => void;
+  setAirportHover: (
+    airportId: string | null,
+    screen: { x: number; y: number } | null,
+  ) => void;
 }
 
 export const useAircraftStore = create<AircraftStore>((set) => ({
@@ -69,6 +75,8 @@ export const useAircraftStore = create<AircraftStore>((set) => ({
   cameraFlyTargetId: DEFAULT_AIRPORT_ID,
   categoryFilter: null,
   airportCatalogReady: false,
+  hoveredAirportId: null,
+  hoverScreen: null,
 
   setAircraft: (aircraft) => set({ aircraft }),
   setAirportCatalogReady: (airportCatalogReady) => set({ airportCatalogReady }),
@@ -115,6 +123,8 @@ export const useAircraftStore = create<AircraftStore>((set) => ({
   setConnectionStatus: (connectionStatus) => set({ connectionStatus }),
   setCameraMode: (cameraMode) => set({ cameraMode }),
   setCategoryFilter: (categoryFilter) => set({ categoryFilter }),
+  setAirportHover: (hoveredAirportId, hoverScreen) =>
+    set({ hoveredAirportId, hoverScreen }),
 }));
 
 export function passesCategoryFilter(

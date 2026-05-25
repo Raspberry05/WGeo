@@ -22,11 +22,15 @@ import {
   hudPanelStyle,
   HUD_FONT_LG,
   HUD_FONT_SM,
-  HUD_INSPECTOR_WIDTH,
-  HUD_SIDEBAR_WIDTH,
+  HUD_TOUCH_MIN,
+  inspectorLayout,
 } from "./hudTheme";
 
-export function AircraftInspector() {
+export interface AircraftInspectorProps {
+  isMobile: boolean;
+}
+
+export function AircraftInspector({ isMobile }: AircraftInspectorProps) {
   const selectedId = useAircraftStore((s) => s.selectedId);
   const aircraft = useAircraftStore((s) => s.aircraft);
   const activeAirportId = useAircraftStore((s) => s.activeAirportId);
@@ -35,6 +39,8 @@ export function AircraftInspector() {
 
   const ac = selectedId ? aircraft[selectedId] : null;
   if (!ac) return null;
+
+  const layout = inspectorLayout(isMobile);
 
   const STATUS_COLORS: Record<string, string> = {
     airborne: "#00ff88",
@@ -55,18 +61,26 @@ export function AircraftInspector() {
 
   return (
     <div
+      className="hud-inspector"
       style={{
         position: "absolute",
-        bottom: "16px",
-        left: HUD_SIDEBAR_WIDTH + 16,
-        width: HUD_INSPECTOR_WIDTH,
+        bottom: layout.bottom,
+        left: layout.left,
+        right: layout.right,
+        width: layout.width,
+        maxHeight: layout.maxHeight,
+        overflowY: isMobile ? "auto" : undefined,
         zIndex: 101,
         ...hudPanelStyle,
         border: `1px solid ${hexWithAlpha(color, "44")}`,
         borderTop: `3px solid ${color}`,
         padding: "14px",
+        paddingBottom: isMobile
+          ? "max(14px, env(safe-area-inset-bottom))"
+          : "14px",
         fontFamily: "monospace",
         pointerEvents: "auto",
+        borderRadius: isMobile ? "12px 12px 0 0" : hudPanelStyle.borderRadius,
       }}
     >
       <div style={{ marginBottom: "10px" }}>
@@ -137,6 +151,7 @@ export function AircraftInspector() {
         style={{
           marginTop: "12px",
           width: "100%",
+          minHeight: isMobile ? HUD_TOUCH_MIN : undefined,
           padding: "10px",
           background:
             cameraMode === "follow" ? hexWithAlpha(color, "22") : "transparent",
