@@ -14,15 +14,19 @@ export async function enrichSelectedAircraft(icao24: string): Promise<void> {
     const ac = useAircraftStore.getState().aircraft[icao24];
     if (!ac) return;
 
-    const patch: Partial<AircraftState> = {
-      operatorName: data.operatorName,
-      aircraftModel: data.aircraftModel,
-      originAirport: data.originAirport,
-      destinationAirport: data.destinationAirport,
-    };
+    const patch: Partial<AircraftState> = {};
 
+    if (data.operatorName != null) {
+      patch.operatorName = data.operatorName;
+    }
     if (data.aircraftModel) {
       patch.aircraftModel = data.aircraftModel;
+    }
+    if (data.originAirport) {
+      patch.originAirport = data.originAirport;
+    }
+    if (data.destinationAirport) {
+      patch.destinationAirport = data.destinationAirport;
     }
 
     if (ac.categoryCode === null && data.aircraftModel) {
@@ -35,7 +39,9 @@ export async function enrichSelectedAircraft(icao24: string): Promise<void> {
       patch.aircraftType = inferred.label;
     }
 
-    useAircraftStore.getState().enrichAircraft(icao24, patch);
+    if (Object.keys(patch).length > 0) {
+      useAircraftStore.getState().enrichAircraft(icao24, patch);
+    }
   } finally {
     enrichmentInflight.delete(icao24);
   }

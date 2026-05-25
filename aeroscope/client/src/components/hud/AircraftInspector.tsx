@@ -13,6 +13,7 @@ import {
   formatSpeedKnots,
   formatUtcDateTime,
 } from "../../utils/flightUnits";
+import { formatRouteSummary } from "../../utils/routeDisplay";
 import { AlternatingWeight } from "./AlternatingWeight";
 import { InspectorField } from "./InspectorField";
 import {
@@ -43,8 +44,11 @@ export function AircraftInspector() {
   const color = STATUS_COLORS[ac.status] ?? "#ffffff";
 
   const brand = ac.aircraftModel ?? ac.operatorName ?? "—";
-  const origin = ac.originAirport?.toUpperCase() ?? "—";
-  const dest = ac.destinationAirport?.toUpperCase() ?? "—";
+  const { origin, destination, hasAnyRoute } = formatRouteSummary(
+    ac.originAirport,
+    ac.destinationAirport,
+    ac.onGround,
+  );
   const routeNm = routeDistanceNm(ac.originAirport, ac.destinationAirport);
   const massKg = estimateMassKg(ac.categoryCode);
 
@@ -90,13 +94,17 @@ export function AircraftInspector() {
       <InspectorField
         label="ROUTE"
         value={
-          <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-            <AirportFlag icao={ac.originAirport} />
-            {origin}
-            <span style={{ color: hudMuted }}>→</span>
-            <AirportFlag icao={ac.destinationAirport} />
-            {dest}
-          </span>
+          hasAnyRoute ? (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+              <AirportFlag icao={ac.originAirport} />
+              {origin}
+              <span style={{ color: hudMuted }}>→</span>
+              <AirportFlag icao={ac.destinationAirport} />
+              {destination}
+            </span>
+          ) : (
+            <span style={{ color: hudMuted }}>No flight plan</span>
+          )
         }
       />
       {routeNm !== null && (
@@ -109,7 +117,7 @@ export function AircraftInspector() {
         label="FROM FIELD"
         value={formatDistanceToAirport(ac.rawLat, ac.rawLon, activeAirportId)}
       />
-      <InspectorField label="COUNTRY" value={ac.originCountry || "—"} />
+      <InspectorField label="REG. COUNTRY" value={ac.originCountry || "—"} />
       <InspectorField label="STATUS" value={ac.status.toUpperCase()} />
       <InspectorField label="ALTITUDE" value={formatAltitudeFeet(ac.altitudeMeters)} />
       <InspectorField label="SPEED" value={formatSpeedKnots(ac.velocity)} />

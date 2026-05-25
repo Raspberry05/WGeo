@@ -9,6 +9,7 @@ import {
 } from "../../utils/countryFlags";
 import { countryNameToIso2 } from "../../utils/countryFlagUtils";
 import { formatAltitudeFeet, formatSpeedKnots } from "../../utils/flightUnits";
+import { formatRouteSummary } from "../../utils/routeDisplay";
 import {
   hudAccent,
   hudMuted,
@@ -21,11 +22,6 @@ import {
 } from "./hudTheme";
 import { UtcClock } from "./UtcClock";
 import { WeatherPanel } from "./WeatherPanel";
-
-function formatAirportCode(code: string | null): string {
-  if (!code) return "—";
-  return code.toUpperCase();
-}
 
 export function StatusBar() {
   const status = useAircraftStore((s) => s.connectionStatus);
@@ -66,6 +62,14 @@ export function StatusBar() {
     null;
 
   const regIso = selected ? countryNameToIso2(selected.originCountry) : null;
+
+  const routeDisplay = selected
+    ? formatRouteSummary(
+        selected.originAirport,
+        selected.destinationAirport,
+        selected.onGround,
+      )
+    : null;
 
   return (
     <div
@@ -151,11 +155,17 @@ export function StatusBar() {
             )}
             <span style={{ color: "#5a7a6a" }}>|</span>
             <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-              <AirportFlag icao={selected.originAirport} />
-              <span>{formatAirportCode(selected.originAirport)}</span>
-              <span style={{ color: hudMuted }}>→</span>
-              <AirportFlag icao={selected.destinationAirport} />
-              <span>{formatAirportCode(selected.destinationAirport)}</span>
+              {routeDisplay?.hasAnyRoute ? (
+                <>
+                  <AirportFlag icao={selected.originAirport} />
+                  <span>{routeDisplay.origin}</span>
+                  <span style={{ color: hudMuted }}>→</span>
+                  <AirportFlag icao={selected.destinationAirport} />
+                  <span>{routeDisplay.destination}</span>
+                </>
+              ) : (
+                <span style={{ color: hudMuted }}>No flight plan</span>
+              )}
             </span>
             {regIso && (
               <FlagIcon iso2={regIso} size={18} title={selected.originCountry} />
