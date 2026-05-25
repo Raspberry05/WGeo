@@ -44,7 +44,9 @@ export async function startAircraftSystem(): Promise<() => void> {
       const fetchRttMs = receivedAtMs - fetchStartedMs;
 
       if (fresh.length === 0) {
-        console.warn("OpenSky returned 0 aircraft — retrying next interval");
+        console.warn(
+          "OpenSky returned 0 aircraft in this region — check /api/health on the server (Vercel env vars + redeploy)",
+        );
         useAircraftStore.getState().setConnectionStatus("CONNECTING");
         scheduleNextPoll(AIRCRAFT_POLL_INTERVAL_MS);
         return;

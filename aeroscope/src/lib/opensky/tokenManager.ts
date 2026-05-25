@@ -2,87 +2,100 @@ const TOKEN_URL =
   "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token";
 const TOKEN_REFRESH_MARGIN = 30;
 
-export class OpenSkyTokenManager {
-  private token: string | null = null;
-  private expiresAt: number | null = null;
+type TokenCache = {
+  token: string;
+  expiresAt: number;
+};
 
-  constructor(
-    private readonly clientId: string | undefined,
-    private readonly clientSecret: string | undefined,
-    private readonly tokenUrl: string = TOKEN_URL,
-  ) {}
-
-  isConfigured(): boolean {
-    return Boolean(this.clientId && this.clientSecret);
-  }
-
-  isTokenValid(): boolean {
-    return (
-      this.token !== null &&
-      this.expiresAt !== null &&
-      Date.now() < this.expiresAt
-    );
-  }
-
-  async headers(): Promise<Record<string, string>> {
-    const token = await this.getToken();
-    return { Authorization: `Bearer ${token}` };
-  }
-
-  private async getToken(): Promise<string> {
-    if (this.token && this.expiresAt && Date.now() < this.expiresAt) {
-      return this.token;
-    }
-    return this.refresh();
-  }
-
-  private async refresh(): Promise<string> {
-    if (!this.clientId || !this.clientSecret) {
-      throw new Error("OpenSky credentials are not configured");
-    }
-
-    const body = new URLSearchParams({
-      grant_type: "client_credentials",
-      client_id: this.clientId,
-      client_secret: this.clientSecret,
-    });
-
-    const response = await fetch(this.tokenUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body,
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`OpenSky token refresh failed: ${response.status} ${text}`);
-    }
-
-    const data = (await response.json()) as {
-      access_token: string;
-      expires_in?: number;
-    };
-
-    this.token = data.access_token;
-    const expiresIn = data.expires_in ?? 1800;
-    this.expiresAt = Date.now() + (expiresIn - TOKEN_REFRESH_MARGIN) * 1000;
-    return this.token;
-  }
-}
-
-let singleton: OpenSkyTokenManager | null = null;
+let tokenCache: TokenCache | null = null;
 
 function readEnv(name: string): string | undefined {
   const value = process.env[name]?.trim();
   return value ? value : undefined;
 }
 
-export function getOpenSkyTokenManager(): OpenSkyTokenManager {
-  if (!singleton) {
-    singleton = new OpenSkyTokenManager(
-      readEnv("OPENSKY_CLIENT_ID"),
-      readEnv("OPENSKY_CLIENT_SECRET"),
-    );
+export function getOpenSkyCredentials(): {
+  clientId: string | undefined;
+  clientSecret: string | undefined;
+} {
+  return {
+    clientId: readEnv("OPENSKY_CLIENT_ID"),
+    clientSecret: readEnv("OPENSKY_CLIENT_SECRET"),
+  };
+}
+
+export function isOpenSkyConfigured(): boolean {
+  const { clientId, clientSecret } = getOpenSkyCredentials();
+  return Boolean(clientId && clientSecret);
+}
+
+export function isOpenSkyTokenCached(): boolean {
+  return tokenCache !== null && Date.now() < tokenCache.expiresAt;
+}
+
+export async function getOpenSkyAuthHeaders(): Promise<Record<string, string>> {
+  const { clientId, clientSecret } = getOpenSkyCredentials();
+  if (!clientId || !clientSecret) {
+    return {};
   }
-  return singleton;
+
+  if (tokenCache && Date.now() < tokenCache.expiresAt) {
+    return { Authorization: `Bearer ${tokenCache.token}` };
+  }
+
+  const body = new URLSearchParams({
+    grant_type: "client_credentials",
+    client_id: clientId,
+    client_secret: clientSecret,
+  });
+
+  const response = await fetch(TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+    signal: AbortSignal.timeout(15_000),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    tokenCache = null;
+    throw new Error(`OpenSky token refresh failed: ${response.status} ${text}`);
+  }
+
+  const data = (await response.json()) as {
+    access_token: string;
+    expires_in?: number;
+  };
+
+  const expiresIn = data.expires_in ?? 1800;
+  tokenCache = {
+    token: data.access_token,
+    expiresAt: Date.now() + (expiresIn - TOKEN_REFRESH_MARGIN) * 1000,
+  };
+
+  return { Authorization: `Bearer ${tokenCache.token}` };
+}
+
+/** Probe OAuth without throwing — used by /api/health. */
+export async function probeOpenSkyAuth(): Promise<{
+  configured: boolean;
+  ok: boolean;
+  error?: string;
+}> {
+  const configured = isOpenSkyConfigured();
+  if (!configured) {
+    return {
+      configured: false,
+      ok: false,
+      error: "OPENSKY_CLIENT_ID or OPENSKY_CLIENT_SECRET is not set on the server",
+    };
+  }
+
+  try {
+    await getOpenSkyAuthHeaders();
+    return { configured: true, ok: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { configured: true, ok: false, error: message };
+  }
 }

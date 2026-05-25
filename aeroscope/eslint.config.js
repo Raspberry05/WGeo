@@ -1,31 +1,16 @@
-import js from "@eslint/js";
-import globals from "globals";
-import nextPlugin from "@next/eslint-plugin-next";
-import reactHooks from "eslint-plugin-react-hooks";
-import tseslint from "typescript-eslint";
-import { defineConfig, globalIgnores } from "eslint/config";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { FlatCompat } from "@eslint/eslintrc";
 
-export default defineConfig([
-  globalIgnores([".next", "node_modules", "public/cesium"]),
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+const compat = new FlatCompat({
+  baseDirectory: __dirname,
+});
+
+export default [
   {
-    files: ["src/**/*.{ts,tsx}"],
-    extends: [
-      js.configs.recommended,
-      ...tseslint.configs.recommended,
-      reactHooks.configs.flat.recommended,
-    ],
-    plugins: {
-      "@next/next": nextPlugin,
-    },
-    rules: {
-      ...nextPlugin.configs.recommended.rules,
-      ...nextPlugin.configs["core-web-vitals"].rules,
-    },
-    languageOptions: {
-      globals: {
-        ...globals.browser,
-        ...globals.node,
-      },
-    },
+    ignores: [".next/**", "node_modules/**", "public/cesium/**"],
   },
-]);
+  ...compat.extends("next/core-web-vitals", "next/typescript"),
+];

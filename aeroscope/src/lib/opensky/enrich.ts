@@ -3,7 +3,7 @@ import {
   pickLatestFlight,
   type OpenSkyFlightRecord,
 } from "./flights";
-import { getOpenSkyTokenManager } from "./tokenManager";
+import { getOpenSkyAuthHeaders } from "./tokenManager";
 
 export type AircraftEnrichmentPayload = {
   operatorName: string | null;
@@ -44,8 +44,7 @@ export async function fetchAircraftEnrichment(
   }
 
   try {
-    const tokenManager = getOpenSkyTokenManager();
-    const headers = await tokenManager.headers();
+    const headers = await getOpenSkyAuthHeaders();
     const now = Math.floor(Date.now() / 1000);
     const begin = now - 6 * 3600;
     const end = now;

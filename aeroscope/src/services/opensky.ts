@@ -47,14 +47,31 @@ export async function fetchOpenSkyAircraft(
 
   if (!res.ok) throw new Error(`Proxy error: ${res.status}`);
 
-  const data = await res.json();
+  const data = (await res.json()) as {
+    states?: unknown[] | null;
+    error?: string;
+    hint?: string;
+    configured?: boolean;
+  };
+
+  if (data.error) {
+    console.error(
+      "OpenSky API error:",
+      data.error,
+      data.hint ?? "",
+      `(configured=${String(data.configured)})`,
+    );
+    throw new Error(data.error);
+  }
+
   if (!data.states || data.states.length === 0) return [];
 
   const receivedAtMs = Date.now();
+  const rows = data.states as unknown[][];
 
-  return data.states
-    .filter((s: unknown[]) => s?.[5] != null && s?.[6] != null)
-    .map((s: unknown[]): AircraftState => {
+  return rows
+    .filter((s) => s?.[5] != null && s?.[6] != null)
+    .map((s): AircraftState => {
       const row = s as (string | number | boolean | null)[];
       const icao24 = String(row[0] ?? "");
       const callsign = String(row[1] || icao24).trim();
