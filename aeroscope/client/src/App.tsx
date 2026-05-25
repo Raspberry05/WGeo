@@ -1,18 +1,20 @@
-import { useEffect } from "react";
-import { CesiumScene } from "./components/scene/CesiumScene";
+import { useEffect, useRef } from "react";
+import { AircraftEntities } from "./components/cesium/AircraftEntities";
+import { AirportEntities } from "./components/cesium/AirportEntities";
+import { CesiumViewer } from "./components/cesium/CesiumViewer";
+import { ScenePickHandler } from "./components/cesium/ScenePickHandler";
 import { HUD } from "./components/hud/HUD";
 import { startAircraftSystem } from "./systems/aircraftSystem";
 
 export default function App() {
+  const cleanupRef = useRef<(() => void) | null>(null);
+
   useEffect(() => {
-    let cleanup: (() => void) | null = null;
-
-    startAircraftSystem().then((fn) => {
-      cleanup = fn;
+    startAircraftSystem().then((cleanup) => {
+      cleanupRef.current = cleanup;
     });
-
     return () => {
-      if (cleanup) cleanup();
+      cleanupRef.current?.();
     };
   }, []);
 
@@ -23,10 +25,13 @@ export default function App() {
         height: "100vh",
         position: "relative",
         overflow: "hidden",
-        background: "#020a0e",
+        background: "#0d0d0f",
       }}
     >
-      <CesiumScene />
+      <CesiumViewer />
+      <AircraftEntities />
+      <AirportEntities />
+      <ScenePickHandler />
       <HUD />
     </div>
   );

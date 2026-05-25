@@ -25,7 +25,17 @@ export async function startAircraftSystem(): Promise<() => void> {
       const next: Record<string, (typeof fresh)[0]> = {};
       fresh.forEach((ac) => {
         setInterpolationTarget(current[ac.id], ac);
-        next[ac.id] = ac;
+        const prev = current[ac.id];
+        next[ac.id] = prev
+          ? {
+              ...ac,
+              operatorName: prev.operatorName ?? ac.operatorName,
+              aircraftModel: prev.aircraftModel ?? ac.aircraftModel,
+              originAirport: prev.originAirport ?? ac.originAirport,
+              destinationAirport:
+                prev.destinationAirport ?? ac.destinationAirport,
+            }
+          : ac;
       });
 
       useAircraftStore.getState().setAircraft(next);

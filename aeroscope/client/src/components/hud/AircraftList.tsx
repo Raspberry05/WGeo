@@ -1,4 +1,9 @@
-import { useAircraftStore } from "../../store/useAircraftStore";
+import { enrichSelectedAircraft } from "../../services/aircraftEnrichment";
+import {
+  passesCategoryFilter,
+  useAircraftStore,
+} from "../../store/useAircraftStore";
+import { formatAltitudeFeet, formatSpeedKnots } from "../../utils/flightUnits";
 
 const STATUS_COLORS: Record<string, string> = {
   airborne: "#00ff88",
@@ -10,19 +15,27 @@ const STATUS_COLORS: Record<string, string> = {
 export function AircraftList() {
   const aircraft = useAircraftStore((s) => s.aircraft);
   const selectedId = useAircraftStore((s) => s.selectedId);
+  const categoryFilter = useAircraftStore((s) => s.categoryFilter);
   const selectAircraft = useAircraftStore((s) => s.selectAircraft);
   const requestCameraFly = useAircraftStore((s) => s.requestCameraFly);
 
-  const list = Object.values(aircraft).sort((a, b) => b.altitude - a.altitude);
+  const list = Object.values(aircraft)
+    .filter((ac) =>
+      passesCategoryFilter(
+        ac.categoryCode === null ? -1 : ac.categoryCode,
+        categoryFilter,
+      ),
+    )
+    .sort((a, b) => b.altitudeMeters - a.altitudeMeters);
 
   return (
     <div
       style={{
         position: "absolute",
-        top: "368px",
+        top: "430px",
         left: "8px",
         width: "200px",
-        maxHeight: "calc(100vh - 520px)",
+        maxHeight: "calc(100vh - 560px)",
         minHeight: "120px",
         overflowY: "auto",
         background: "rgba(0,8,16,0.88)",
@@ -58,6 +71,7 @@ export function AircraftList() {
               } else {
                 selectAircraft(ac.id);
                 requestCameraFly("aircraft", ac.id);
+                void enrichSelectedAircraft(ac.id);
               }
             }}
             style={{
@@ -93,9 +107,9 @@ export function AircraftList() {
               </div>
             </div>
             <div style={{ textAlign: "right", color: "#7a9a8a" }}>
-              <div>{Math.round(ac.altitude).toLocaleString()}ft</div>
+              {formatAltitudeFeet(ac.altitudeMeters)}
               <div style={{ fontSize: "9px", color: "#4a6a5a" }}>
-                {Math.round(ac.velocity)}kts
+                {formatSpeedKnots(ac.velocity)}
               </div>
             </div>
           </div>

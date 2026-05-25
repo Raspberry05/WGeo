@@ -3,7 +3,7 @@ import { DEFAULT_AIRPORT_ID } from "../data/airports";
 
 export type AircraftStatus = "taxiing" | "airborne" | "landing" | "parked";
 export type CameraFlyTarget = "airport" | "aircraft" | "globe";
-export type ViewMode = "globe" | "local";
+export type CameraMode = "free" | "follow";
 
 export interface AircraftState {
   id: string;
@@ -14,68 +14,106 @@ export interface AircraftState {
   rawLon: number;
   velocity: number;
   heading: number;
-  altitude: number;
+  altitudeMeters: number;
   onGround: boolean;
   status: AircraftStatus;
   lastUpdated: number;
   aircraftType: string;
   categoryCode: number | null;
+  originCountry: string;
+  operatorName: string | null;
+  aircraftModel: string | null;
+  originAirport: string | null;
+  destinationAirport: string | null;
 }
 
 interface AircraftStore {
   aircraft: Record<string, AircraftState>;
   selectedId: string | null;
   activeAirportId: string;
+  activeAirportPickEnabled: boolean;
   connectionStatus: "LIVE" | "SIMULATED" | "CONNECTING";
-  cameraMode: "orbit" | "follow" | "tower";
+  cameraMode: CameraMode;
   airportChangeToken: number;
   cameraFlyToken: number;
   cameraFlyTarget: CameraFlyTarget;
   cameraFlyTargetId: string | null;
-  viewMode: ViewMode;
+  categoryFilter: number[] | null;
 
   setAircraft: (aircraft: Record<string, AircraftState>) => void;
   upsertAircraft: (ac: AircraftState) => void;
+  enrichAircraft: (id: string, patch: Partial<AircraftState>) => void;
   selectAircraft: (id: string | null) => void;
   setActiveAirport: (id: string) => void;
   requestCameraFly: (target: CameraFlyTarget, id?: string) => void;
-  setViewMode: (mode: ViewMode) => void;
   setConnectionStatus: (s: "LIVE" | "SIMULATED" | "CONNECTING") => void;
-  setCameraMode: (mode: "orbit" | "follow" | "tower") => void;
+  setCameraMode: (mode: CameraMode) => void;
+  setCategoryFilter: (codes: number[] | null) => void;
 }
 
 export const useAircraftStore = create<AircraftStore>((set) => ({
   aircraft: {},
   selectedId: null,
   activeAirportId: DEFAULT_AIRPORT_ID,
+  activeAirportPickEnabled: true,
   connectionStatus: "CONNECTING",
-  cameraMode: "orbit",
+  cameraMode: "free",
   airportChangeToken: 0,
   cameraFlyToken: 0,
   cameraFlyTarget: "airport",
   cameraFlyTargetId: DEFAULT_AIRPORT_ID,
-  viewMode: "local",
+  categoryFilter: null,
 
   setAircraft: (aircraft) => set({ aircraft }),
   upsertAircraft: (ac) =>
     set((state) => ({
       aircraft: { ...state.aircraft, [ac.id]: ac },
     })),
-  selectAircraft: (id) => set({ selectedId: id }),
+  enrichAircraft: (id, patch) =>
+    set((state) => {
+      const existing = state.aircraft[id];
+      if (!existing) return state;
+      return {
+        aircraft: {
+          ...state.aircraft,
+          [id]: { ...existing, ...patch },
+        },
+      };
+    }),
+  selectAircraft: (id) =>
+    set({
+      selectedId: id,
+      cameraMode: id ? "follow" : "free",
+    }),
   setActiveAirport: (id) =>
-    set((state) => ({
-      activeAirportId: id,
-      selectedId: null,
-      aircraft: {},
-      airportChangeToken: state.airportChangeToken + 1,
-    })),
+    set((state) => {
+      if (id === state.activeAirportId && state.activeAirportPickEnabled) {
+        return { activeAirportPickEnabled: false };
+      }
+      return {
+        activeAirportId: id,
+        activeAirportPickEnabled: true,
+        selectedId: null,
+        aircraft: {},
+        cameraMode: "free",
+        airportChangeToken: state.airportChangeToken + 1,
+      };
+    }),
   requestCameraFly: (target, id) =>
     set((state) => ({
       cameraFlyTarget: target,
       cameraFlyTargetId: id ?? state.activeAirportId,
       cameraFlyToken: state.cameraFlyToken + 1,
     })),
-  setViewMode: (viewMode) => set({ viewMode }),
   setConnectionStatus: (connectionStatus) => set({ connectionStatus }),
   setCameraMode: (cameraMode) => set({ cameraMode }),
+  setCategoryFilter: (categoryFilter) => set({ categoryFilter }),
 }));
+
+export function passesCategoryFilter(
+  categoryCode: number,
+  filter: number[] | null,
+): boolean {
+  if (!filter || filter.length === 0) return true;
+  return filter.includes(categoryCode);
+}

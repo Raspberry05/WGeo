@@ -64,13 +64,30 @@ export function feetToMeters(feet: number): number {
   return feet * 0.3048;
 }
 
-export function altitudeToMeters(altitudeFeet: number, onGround: boolean): number {
+export function metersToFeet(meters: number): number {
+  return meters * 3.28084;
+}
+
+/** OpenSky baro/geo altitude is already in meters. */
+export function resolveAltitudeMeters(
+  baroMeters: number,
+  onGround: boolean,
+): number {
   if (onGround) return GROUND_CLAMP_HEIGHT_M;
-  return Math.max(feetToMeters(altitudeFeet), 50);
+  if (!Number.isFinite(baroMeters) || baroMeters <= 0) return 50;
+  return Math.max(baroMeters, 50);
+}
+
+/** @deprecated Use resolveAltitudeMeters */
+export function altitudeToMeters(
+  altitudeMeters: number,
+  onGround: boolean,
+): number {
+  return resolveAltitudeMeters(altitudeMeters, onGround);
 }
 
 export function classifyStatus(
-  altitude: number,
+  altitudeMeters: number,
   velocity: number,
   onGround: boolean,
 ): import("../store/useAircraftStore").AircraftStatus {
@@ -78,7 +95,7 @@ export function classifyStatus(
     if (velocity > 5) return "taxiing";
     return "parked";
   }
-  if (altitude < 1000 && velocity > 50) return "landing";
+  if (altitudeMeters < 300 && velocity > 50) return "landing";
   return "airborne";
 }
 

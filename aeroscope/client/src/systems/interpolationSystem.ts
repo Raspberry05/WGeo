@@ -1,9 +1,9 @@
 import type { AircraftState } from "../store/useAircraftStore";
 import {
-  altitudeToMeters,
   geoToScene,
   lerp,
   lerpAngle,
+  resolveAltitudeMeters,
 } from "../utils/geoMath";
 
 const targets = new Map<
@@ -13,8 +13,8 @@ const targets = new Map<
     toLat: number;
     fromLon: number;
     toLon: number;
-    fromAlt: number;
-    toAlt: number;
+    fromAltM: number;
+    toAltM: number;
     fromHeading: number;
     toHeading: number;
     startTime: number;
@@ -33,8 +33,8 @@ export function setInterpolationTarget(
     toLat: next.rawLat,
     fromLon: prev?.rawLon ?? next.rawLon,
     toLon: next.rawLon,
-    fromAlt: prev?.altitude ?? next.altitude,
-    toAlt: next.altitude,
+    fromAltM: prev?.altitudeMeters ?? next.altitudeMeters,
+    toAltM: next.altitudeMeters,
     fromHeading: prev?.heading ?? next.heading,
     toHeading: next.heading,
     startTime: Date.now(),
@@ -58,7 +58,7 @@ export function getInterpolatedGeoState(ac: AircraftState): {
     return {
       lat: ac.rawLat,
       lon: ac.rawLon,
-      altMeters: altitudeToMeters(ac.altitude, ac.onGround),
+      altMeters: resolveAltitudeMeters(ac.altitudeMeters, ac.onGround),
       headingRad: -((ac.heading * Math.PI) / 180),
       clampToGround: ac.onGround,
     };
@@ -69,30 +69,30 @@ export function getInterpolatedGeoState(ac: AircraftState): {
 
   const lat = lerp(target.fromLat, target.toLat, t);
   const lon = lerp(target.fromLon, target.toLon, t);
-  const altitudeFeet = lerp(target.fromAlt, target.toAlt, t);
+  const altitudeMeters = lerp(target.fromAltM, target.toAltM, t);
   const fromRad = -((target.fromHeading * Math.PI) / 180);
   const toRad = -((target.toHeading * Math.PI) / 180);
   const headingRad = lerpAngle(fromRad, toRad, t);
 
-  const onGround = ac.onGround && altitudeFeet < 500;
+  const onGround = ac.onGround && altitudeMeters < 150;
 
   return {
     lat,
     lon,
-    altMeters: altitudeToMeters(altitudeFeet, onGround),
+    altMeters: resolveAltitudeMeters(altitudeMeters, onGround),
     headingRad,
     clampToGround: onGround,
   };
 }
 
-/** @deprecated Legacy Three.js scene coordinates — use getInterpolatedGeoState instead. */
+/** @deprecated Legacy Three.js scene coordinates */
 export function getInterpolatedState(ac: AircraftState): {
   position: [number, number, number];
   headingRad: number;
 } {
   const geo = getInterpolatedGeoState(ac);
   return {
-    position: geoToScene(geo.lat, geo.lon, ac.altitude),
+    position: geoToScene(geo.lat, geo.lon, geo.altMeters),
     headingRad: geo.headingRad,
   };
 }
