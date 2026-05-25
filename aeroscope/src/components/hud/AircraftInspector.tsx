@@ -17,6 +17,7 @@ import { formatRouteSummary } from "../../utils/routeDisplay";
 import { AlternatingWeight } from "./AlternatingWeight";
 import { InspectorField } from "./InspectorField";
 import {
+  hexWithAlpha,
   hudMuted,
   hudPanelStyle,
   HUD_FONT_LG,
@@ -61,7 +62,7 @@ export function AircraftInspector() {
         width: HUD_INSPECTOR_WIDTH,
         zIndex: 101,
         ...hudPanelStyle,
-        border: `1px solid ${color}44`,
+        border: `1px solid ${hexWithAlpha(color, "44")}`,
         borderTop: `3px solid ${color}`,
         padding: "14px",
         fontFamily: "monospace",
@@ -137,8 +138,9 @@ export function AircraftInspector() {
           marginTop: "12px",
           width: "100%",
           padding: "10px",
-          background: cameraMode === "follow" ? `${color}22` : "transparent",
-          border: `1px solid ${color}66`,
+          background:
+            cameraMode === "follow" ? hexWithAlpha(color, "22") : "transparent",
+          border: `1px solid ${hexWithAlpha(color, "66")}`,
           color,
           fontFamily: "monospace",
           fontSize: HUD_FONT_SM,

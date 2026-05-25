@@ -18,3 +18,8 @@ export const hudPanelStyle: CSSProperties = {
 export const hudMuted = "#4a6a5a";
 export const hudText = "#7a9a8a";
 export const hudAccent = "#00ff88";
+
+/** Append 2-digit hex alpha — avoid `${color}44` (parsed as octal escape in some bundlers). */
+export function hexWithAlpha(color: string, alphaHex: string): string {
+  return color + alphaHex;
+}
