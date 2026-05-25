@@ -46,3 +46,5 @@ Open http://localhost:3000.
 ## Deploy (Vercel)
 
 Set **Root Directory** to `aeroscope`. See [DEPLOY.md](./DEPLOY.md).
+
+re-deploy
