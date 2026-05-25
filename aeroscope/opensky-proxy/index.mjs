@@ -197,7 +197,21 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url ?? "/", `http://127.0.0.1:${PORT}`);
 
-    if (url.pathname === "/health" || url.pathname === "/diagnose") {
+    if (url.pathname === "/health") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          ok: true,
+          service: "opensky-proxy",
+          cacheEntries: statesCache.size,
+          inflight: statesInflight.size,
+          lastProbeAt: lastProbe.at || null,
+        }),
+      );
+      return;
+    }
+
+    if (url.pathname === "/diagnose") {
       const probe = await probeUpstream();
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(
