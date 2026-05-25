@@ -18,7 +18,10 @@ export async function httpsRequest(
 
   const response = await fetch(url, {
     method,
-    headers,
+    headers: {
+      "User-Agent": "Aeroscope/1.0 (https://github.com)",
+      ...headers,
+    },
     body,
     signal: AbortSignal.timeout(timeoutMs),
     cache: "no-store",

@@ -16,6 +16,8 @@
 | `NEXT_PUBLIC_CESIUM_ION_TOKEN` | Client | [Cesium Ion](https://ion.cesium.com/) token |
 | `CORS_ALLOWED_ORIGINS` | Server (optional) | Comma-separated extra origins allowed to call `/api/*` (e.g. `https://my-domain.com`) |
 | `NEXT_PUBLIC_APP_URL` | Client (optional) | Canonical site URL — also added to CORS allow list |
+| `OPENSKY_STATES_URL` | Server (optional) | EU forward proxy, e.g. `https://<railway>/states` — **required if direct OpenSky times out on Vercel** |
+| `OPENSKY_TOKEN_URL` | Server (optional) | EU forward proxy, e.g. `https://<railway>/token` |
 
 Use `.env.local` locally (see `.env.example`).
 
@@ -30,7 +32,10 @@ Use `.env.local` locally (see `.env.example`).
    - `authError: "fetch failed"` → Vercel cannot reach the OpenSky auth host; add env `NODE_OPTIONS=--dns-result-order=ipv4first` (Production + Preview) and redeploy. The app will fall back to anonymous OpenSky when token fetch fails.
 6. Optional Vercel env: `NODE_OPTIONS` = `--dns-result-order=ipv4first`.
 7. **EU region (required):** OpenSky is in Europe; Vercel’s default is `iad1` (US). This repo sets **`vercel.json`** → `"regions": ["fra1"]` and `"functions": { "src/app/api/**/*.ts": { "regions": ["fra1"] } }`. **Redeploy** after merging. In `/api/health`, expect `vercelRegion: "fra1"` and `regionMismatch: false`. The Next.js `export const preferredRegion` on routes does **not** move Node.js functions — use `vercel.json` or **Vercel → Project → Settings → Functions → Function Region → Frankfurt**.
-8. If EU Vercel still cannot reach OpenSky (`authHostReachable` and `apiHostReachable` both false), OpenSky may block datacenter IPs — host a tiny EU proxy (Railway/Fly) and set `OPENSKY_STATES_URL` / `OPENSKY_TOKEN_URL` to that proxy, or run the Next app on a host with working outbound access to `opensky-network.org`.
+8. **If `vercelRegion` is `fra1` but both hosts still timeout** (your current case): Vercel’s network often cannot reach OpenSky directly. Deploy **`aeroscope/opensky-proxy`** to [Railway](https://railway.app) (EU region), then on Vercel set:
+   - `OPENSKY_STATES_URL` = `https://<your-railway-app>/states`
+   - `OPENSKY_TOKEN_URL` = `https://<your-railway-app>/token`  
+   Redeploy Vercel. See **`opensky-proxy/README.md`** for steps. `/api/health` should show `usingProxy: true` and `authOk: true`.
 
 ## Build
 

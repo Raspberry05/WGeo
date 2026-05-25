@@ -1,10 +1,14 @@
+import {
+  getOpenSkyProxyHealthUrl,
+  getOpenSkyStatesProbeUrl,
+  getOpenSkyTokenUrl,
+  isOpenSkyProxyConfigured,
+} from "./endpoints";
 import { formatNetworkError } from "./networkError";
 import { httpsRequest } from "./httpsGet";
 import { OPENSKY_PROBE_TIMEOUT_MS, OPENSKY_TOKEN_TIMEOUT_MS } from "./timeouts";
 
-const TOKEN_URL =
-  process.env.OPENSKY_TOKEN_URL?.trim() ||
-  "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token";
+const TOKEN_URL = getOpenSkyTokenUrl();
 const TOKEN_REFRESH_MARGIN = 30;
 
 type TokenCache = {
@@ -114,12 +118,16 @@ export async function probeOpenSkyAuth(): Promise<{
   const configured = isOpenSkyConfigured();
   const vercelRegion = process.env.VERCEL_REGION ?? null;
 
-  const authHostProbe = await probeHostHttps(
-    "https://auth.opensky-network.org/",
-  );
-  const apiHostProbe = await probeHostHttps(
-    "https://opensky-network.org/api/states/all?lamin=0&lomin=0&lamax=1&lomax=1",
-  );
+  const usingProxy = isOpenSkyProxyConfigured();
+  const proxyHealthUrl = getOpenSkyProxyHealthUrl();
+  const statesProbeUrl = getOpenSkyStatesProbeUrl();
+
+  const [authHostProbe, apiHostProbe] = await Promise.all([
+    usingProxy && proxyHealthUrl
+      ? probeHostHttps(proxyHealthUrl)
+      : probeHostHttps("https://auth.opensky-network.org/"),
+    probeHostHttps(statesProbeUrl),
+  ]);
 
   if (!configured) {
     return {

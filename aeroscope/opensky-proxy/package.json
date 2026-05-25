@@ -1,0 +1,14 @@
+{
+  "name": "aeroscope-opensky-proxy",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "EU forward proxy for OpenSky when Vercel cannot reach opensky-network.org directly",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node index.mjs",
+    "dev": "node --watch index.mjs"
+  }
+}

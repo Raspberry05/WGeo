@@ -7,14 +7,13 @@ import {
   isOpenSkyConfigured,
   isOpenSkyTokenCached,
 } from "./tokenManager";
+import { getOpenSkyStatesUrl, isOpenSkyProxyConfigured } from "./endpoints";
 import {
   OPENSKY_PROXY_DEADLINE_MS,
   OPENSKY_STATES_TIMEOUT_MS,
 } from "./timeouts";
 
-const AIRCRAFT_URL =
-  process.env.OPENSKY_STATES_URL?.trim() ||
-  "https://opensky-network.org/api/states/all";
+const AIRCRAFT_URL = getOpenSkyStatesUrl();
 const CACHE_TTL_MS = OPENSKY_SERVER_CACHE_MS;
 
 type CacheEntry = { data: unknown; lastFetch: number };
@@ -171,7 +170,9 @@ function errorResult(
       error: message,
       configured,
       hint: configured
-        ? "OpenSky may be unreachable from this Vercel region. Redeploy after setting API routes to EU (fra1/cdg1). If still failing, host the API proxy in EU (Railway/Fly) or contact OpenSky about cloud IP access."
+        ? isOpenSkyProxyConfigured()
+          ? "Proxy is configured but unreachable or returned an error. Check Railway/proxy logs and OPENSKY_STATES_URL / OPENSKY_TOKEN_URL."
+          : "Vercel cannot reach OpenSky directly (common). Deploy aeroscope/opensky-proxy to Railway (EU), then set OPENSKY_STATES_URL=https://<proxy>/states and OPENSKY_TOKEN_URL=https://<proxy>/token on Vercel. See opensky-proxy/README.md."
         : "Set OPENSKY_CLIENT_ID and OPENSKY_CLIENT_SECRET in Vercel → Project → Settings → Environment Variables.",
     },
     status: 502,
