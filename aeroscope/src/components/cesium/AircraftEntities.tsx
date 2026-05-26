@@ -44,7 +44,7 @@ function applyModelStyle(
   if (!entity.model) return;
 
   const color = STATUS_COLORS[ac.status] ?? "#ffffff";
-  const config = getAircraftModelConfig(ac.categoryCode);
+  const config = getAircraftModelConfig(ac.aircraftCategory);
   const heightRef = ac.onGround
     ? HeightReference.CLAMP_TO_GROUND
     : HeightReference.NONE;
@@ -54,6 +54,11 @@ function applyModelStyle(
     config.scale * (ac.onGround ? 0.85 : 1),
   );
   entity.model.minimumPixelSize = new ConstantProperty(isSelected ? 56 : 44);
+  if (entity.model.runAnimations) {
+    entity.model.runAnimations = new ConstantProperty(
+      Boolean(config.runAnimations),
+    );
+  }
   entity.model.silhouetteSize = new ConstantProperty(isSelected ? 2.5 : 1.2);
   entity.model.colorBlendAmount = new ConstantProperty(
     isSelected ? 0.35 : 0.15,
@@ -67,7 +72,7 @@ function applyModelStyle(
 
 function createAircraftEntity(viewer: Viewer, ac: AircraftState): Entity {
   const color = STATUS_COLORS[ac.status] ?? "#ffffff";
-  const modelConfig = getAircraftModelConfig(ac.categoryCode);
+  const modelConfig = getAircraftModelConfig(ac.aircraftCategory);
   const heightRef = ac.onGround
     ? HeightReference.CLAMP_TO_GROUND
     : HeightReference.NONE;
@@ -104,6 +109,7 @@ function createAircraftEntity(viewer: Viewer, ac: AircraftState): Entity {
       scale: modelConfig.scale * (ac.onGround ? 0.85 : 1),
       minimumPixelSize: 44,
       heightReference: heightRef,
+      ...(modelConfig.runAnimations ? { runAnimations: true } : {}),
       color: Color.fromCssColorString(color),
       silhouetteColor: Color.fromCssColorString(color),
       silhouetteSize: 1.2,

@@ -1,81 +1,105 @@
+import type { AircraftCategory } from "@/domain/aircraft/aircraftCategory";
+
 /**
- * OpenSky category → GLTF mapping.
- * Replace URIs with downloaded models; see docs/AIRCRAFT_GLTF_SOURCES.md.
+ * Aircraft category → GLTF placeholder mapping.
+ * Regenerate models: node scripts/generate-placeholders.mjs
  */
 export interface AircraftModelConfig {
   uri: string;
   scale: number;
   minimumPixelSize: number;
+  /** Play embedded glTF animations (e.g. helicopter rotor spin). */
+  runAnimations?: boolean;
 }
 
 const MODELS = {
-  default: "/models/plane-placeholder.gltf",
+  plane: "/models/plane-placeholder.gltf",
   balloon: "/models/balloon-placeholder.gltf",
   glider: "/models/glider-placeholder.gltf",
   light: "/models/light-placeholder.gltf",
-  small: "/models/small-placeholder.gltf",
-  large: "/models/large-placeholder.gltf",
+  medium: "/models/medium-placeholder.gltf",
   heavy: "/models/heavy-placeholder.gltf",
+  helicopter: "/models/helicopter-placeholder.gltf",
+  unknown: "/models/unknown-placeholder.gltf",
 } as const;
 
-function scaleForCategory(categoryCode: number | null): number {
-  switch (categoryCode) {
-    case 2:
-      return 0.75;
-    case 3:
-      return 0.9;
-    case 4:
-    case 5:
-      return 1.35;
-    case 6:
-      return 1.65;
-    case 7:
-      return 0.95;
-    case 8:
-      return 0.65;
-    case 9:
+function scaleForCategory(category: AircraftCategory): number {
+  switch (category) {
+    case "light":
+      return 0.78;
+    case "medium":
+    case "commercial":
+      return 1.0;
+    case "heavy":
+    case "military":
+      return 1.28;
+    case "helicopter":
+      return 0.92;
+    case "balloon":
+      return 1.15;
+    case "unknown":
       return 0.85;
-    case 10:
-      return 1.1;
-    case 13:
-      return 0.35;
-    case 14:
-      return 0.45;
     default:
       return 1.0;
   }
 }
 
-function uriForCategory(categoryCode: number | null): string {
-  switch (categoryCode) {
-    case 10:
+function uriForCategory(category: AircraftCategory): string {
+  switch (category) {
+    case "helicopter":
+      return MODELS.helicopter;
+    case "balloon":
       return MODELS.balloon;
-    case 9:
-      return MODELS.glider;
-    case 2:
+    case "light":
       return MODELS.light;
-    case 3:
-    case 7:
-      return MODELS.small;
-    case 4:
-    case 5:
-      return MODELS.large;
-    case 6:
+    case "medium":
+    case "commercial":
+      return MODELS.medium;
+    case "heavy":
+    case "military":
       return MODELS.heavy;
+    case "unknown":
+      return MODELS.unknown;
     default:
-      return MODELS.default;
+      return MODELS.plane;
   }
 }
 
 /**
- * Maps OpenSky emitter category to 3D model config.
+ * Maps heuristic aircraft category to 3D placeholder model config.
  */
 export function getAircraftModelConfig(
-  categoryCode: number | null,
+  aircraftCategory: AircraftCategory,
 ): AircraftModelConfig {
   return {
-    uri: uriForCategory(categoryCode),
-    scale: scaleForCategory(categoryCode),
+    uri: uriForCategory(aircraftCategory),
+    scale: scaleForCategory(aircraftCategory),
     minimumPixelSize: 32,
+    runAnimations: aircraftCategory === "helicopter",
   };
+}
+
+/** @deprecated Use getAircraftModelConfig(aircraftCategory). OpenSky numeric codes only. */
+export function getAircraftModelConfigFromCode(
+  categoryCode: number | null,
+): AircraftModelConfig {
+  if (categoryCode === 10) {
+    return getAircraftModelConfig("balloon");
+  }
+  if (categoryCode === 8) {
+    return getAircraftModelConfig("helicopter");
+  }
+  if (categoryCode === 2) {
+    return getAircraftModelConfig("light");
+  }
+  if (categoryCode === 3 || categoryCode === 7) {
+    return getAircraftModelConfig("medium");
+  }
+  if (categoryCode === 4 || categoryCode === 5) {
+    return getAircraftModelConfig("heavy");
+  }
+  if (categoryCode === 6) {
+    return getAircraftModelConfig("heavy");
+  }
+  return getAircraftModelConfig("unknown");
 }

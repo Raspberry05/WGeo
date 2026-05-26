@@ -1,27 +1,45 @@
 {
-  "asset": { "version": "2.0", "generator": "Aeroscope" },
+  "asset": {
+    "version": "2.0",
+    "generator": "Aeroscope"
+  },
   "scene": 0,
-  "scenes": [{ "nodes": [0, 1] }],
+  "scenes": [
+    {
+      "nodes": [
+        0,
+        1
+      ]
+    }
+  ],
   "nodes": [
-    { "name": "fuselage", "mesh": 0 },
-    { "name": "wings", "mesh": 1 }
+    {
+      "name": "part_0",
+      "mesh": 0
+    },
+    {
+      "name": "part_1",
+      "mesh": 1
+    }
   ],
   "meshes": [
     {
-      "name": "fuselage_mesh",
       "primitives": [
         {
-          "attributes": { "POSITION": 0 },
-          "indices": 2,
+          "attributes": {
+            "POSITION": 0
+          },
+          "indices": 1,
           "mode": 4
         }
       ]
     },
     {
-      "name": "wings_mesh",
       "primitives": [
         {
-          "attributes": { "POSITION": 1 },
+          "attributes": {
+            "POSITION": 2
+          },
           "indices": 3,
           "mode": 4
         }
@@ -34,22 +52,38 @@
       "componentType": 5126,
       "count": 8,
       "type": "VEC3",
-      "max": [0.15, 0.08, 0.6],
-      "min": [-0.15, -0.08, -0.6]
+      "max": [
+        0.12,
+        0.07,
+        0.55
+      ],
+      "min": [
+        -0.12,
+        -0.07,
+        -0.55
+      ]
     },
     {
       "bufferView": 1,
-      "componentType": 5126,
-      "count": 8,
-      "type": "VEC3",
-      "max": [0.9, 0.04, 0.12],
-      "min": [-0.9, -0.04, -0.12]
-    },
-    {
-      "bufferView": 2,
       "componentType": 5123,
       "count": 36,
       "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 8,
+      "type": "VEC3",
+      "max": [
+        0.75,
+        0.035,
+        0.1
+      ],
+      "min": [
+        -0.75,
+        -0.035,
+        -0.1
+      ]
     },
     {
       "bufferView": 3,
@@ -59,10 +93,30 @@
     }
   ],
   "bufferViews": [
-    { "buffer": 0, "byteLength": 96, "target": 34962 },
-    { "buffer": 0, "byteOffset": 96, "byteLength": 96, "target": 34962 },
-    { "buffer": 0, "byteOffset": 192, "byteLength": 72, "target": 34963 },
-    { "buffer": 0, "byteOffset": 264, "byteLength": 72, "target": 34963 }
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 96,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 96,
+      "byteLength": 72,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 168,
+      "byteLength": 96,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 264,
+      "byteLength": 72,
+      "target": 34963
+    }
   ],
   "buffers": [
     {

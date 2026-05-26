@@ -1,4 +1,5 @@
 export type AircraftCategory =
+  | "balloon"
   | "helicopter"
   | "light"
   | "medium"
@@ -17,6 +18,7 @@ export const AIRCRAFT_CATEGORY_OPTIONS: ReadonlyArray<{
   { code: "medium", label: "Mid" },
   { code: "light", label: "Light" },
   { code: "helicopter", label: "Helicopter" },
+  { code: "balloon", label: "Balloon" },
   { code: "unknown", label: "Unknown" },
 ] as const;
 
@@ -51,6 +53,15 @@ function looksLikeHelicopterType(aircraftModel: string | null): boolean {
     return true;
   }
 
+  return false;
+}
+
+function looksLikeBalloonType(aircraftModel: string | null): boolean {
+  const t = normalizeToken(aircraftModel);
+  if (!t) return false;
+
+  // ICAO balloons / common shorthand.
+  if (t === "BAL" || t === "BALL" || t.startsWith("BAL")) return true;
   return false;
 }
 
@@ -152,6 +163,7 @@ export type AircraftCategoryInput = {
 };
 
 export function classifyAircraft(input: AircraftCategoryInput): AircraftCategory {
+  if (looksLikeBalloonType(input.aircraftModel)) return "balloon";
   if (looksLikeHelicopterType(input.aircraftModel)) return "helicopter";
   if (looksMilitary(input.operatorName, input.callsign)) return "military";
 

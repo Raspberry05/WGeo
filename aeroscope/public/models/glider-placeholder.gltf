@@ -14,11 +14,11 @@
   ],
   "nodes": [
     {
-      "name": "body",
+      "name": "part_0",
       "mesh": 0
     },
     {
-      "name": "wings",
+      "name": "part_1",
       "mesh": 1
     }
   ],
@@ -29,7 +29,7 @@
           "attributes": {
             "POSITION": 0
           },
-          "indices": 2,
+          "indices": 1,
           "mode": 4
         }
       ]
@@ -38,7 +38,7 @@
       "primitives": [
         {
           "attributes": {
-            "POSITION": 1
+            "POSITION": 2
           },
           "indices": 3,
           "mode": 4
@@ -65,6 +65,12 @@
     },
     {
       "bufferView": 1,
+      "componentType": 5123,
+      "count": 36,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
       "componentType": 5126,
       "count": 8,
       "type": "VEC3",
@@ -80,12 +86,6 @@
       ]
     },
     {
-      "bufferView": 2,
-      "componentType": 5123,
-      "count": 36,
-      "type": "SCALAR"
-    },
-    {
       "bufferView": 3,
       "componentType": 5123,
       "count": 36,
@@ -95,20 +95,21 @@
   "bufferViews": [
     {
       "buffer": 0,
+      "byteOffset": 0,
       "byteLength": 96,
       "target": 34962
     },
     {
       "buffer": 0,
       "byteOffset": 96,
-      "byteLength": 96,
-      "target": 34962
+      "byteLength": 72,
+      "target": 34963
     },
     {
       "buffer": 0,
-      "byteOffset": 192,
-      "byteLength": 72,
-      "target": 34963
+      "byteOffset": 168,
+      "byteLength": 96,
+      "target": 34962
     },
     {
       "buffer": 0,

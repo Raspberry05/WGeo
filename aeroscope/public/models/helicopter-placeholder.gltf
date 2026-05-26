@@ -8,22 +8,33 @@
     {
       "nodes": [
         0,
-        1,
-        2
+        1
       ]
     }
   ],
   "nodes": [
     {
-      "name": "part_0",
+      "name": "fuselage",
       "mesh": 0
     },
     {
-      "name": "part_1",
+      "name": "rotors",
+      "translation": [
+        0,
+        0.1,
+        0
+      ],
+      "children": [
+        2,
+        3
+      ]
+    },
+    {
+      "name": "blade_x",
       "mesh": 1
     },
     {
-      "name": "part_2",
+      "name": "blade_z",
       "mesh": 2
     }
   ],
@@ -69,14 +80,14 @@
       "count": 8,
       "type": "VEC3",
       "max": [
-        0.16,
-        0.09,
-        0.85
+        0.07,
+        0.07,
+        0.35
       ],
       "min": [
-        -0.16,
-        -0.09,
-        -0.85
+        -0.07,
+        -0.07,
+        -0.35
       ]
     },
     {
@@ -91,14 +102,14 @@
       "count": 8,
       "type": "VEC3",
       "max": [
-        1.15,
-        0.045,
-        0.16
+        1.05,
+        0.025,
+        0.025
       ],
       "min": [
-        -1.15,
-        -0.045,
-        -0.16
+        -1.05,
+        -0.025,
+        -0.025
       ]
     },
     {
@@ -113,14 +124,14 @@
       "count": 8,
       "type": "VEC3",
       "max": [
-        0.35,
-        0.03,
-        -0.35
+        0.025,
+        0.025,
+        1.05
       ],
       "min": [
-        -0.35,
-        -0.03,
-        -0.55
+        -0.025,
+        -0.025,
+        -1.05
       ]
     },
     {
@@ -128,6 +139,36 @@
       "componentType": 5123,
       "count": 36,
       "type": "SCALAR"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5126,
+      "count": 2,
+      "type": "SCALAR",
+      "max": [
+        1.2
+      ],
+      "min": [
+        0
+      ]
+    },
+    {
+      "bufferView": 7,
+      "componentType": 5126,
+      "count": 2,
+      "type": "VEC4",
+      "max": [
+        0,
+        1,
+        0,
+        1
+      ],
+      "min": [
+        0,
+        0,
+        0,
+        -1
+      ]
     }
   ],
   "bufferViews": [
@@ -166,12 +207,43 @@
       "byteOffset": 432,
       "byteLength": 72,
       "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 504,
+      "byteLength": 8
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 512,
+      "byteLength": 32
     }
   ],
   "buffers": [
     {
-      "byteLength": 504,
-      "uri": "heavy-placeholder.bin"
+      "byteLength": 544,
+      "uri": "helicopter-placeholder.bin"
+    }
+  ],
+  "animations": [
+    {
+      "name": "rotor_spin",
+      "channels": [
+        {
+          "sampler": 0,
+          "target": {
+            "node": 1,
+            "path": "rotation"
+          }
+        }
+      ],
+      "samplers": [
+        {
+          "interpolation": "LINEAR",
+          "input": 6,
+          "output": 7
+        }
+      ]
     }
   ]
 }

@@ -7,14 +7,19 @@
   "scenes": [
     {
       "nodes": [
-        0
+        0,
+        1
       ]
     }
   ],
   "nodes": [
     {
-      "name": "mesh",
+      "name": "part_0",
       "mesh": 0
+    },
+    {
+      "name": "part_1",
+      "mesh": 1
     }
   ],
   "meshes": [
@@ -28,6 +33,17 @@
           "mode": 4
         }
       ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 2
+          },
+          "indices": 3,
+          "mode": 4
+        }
+      ]
     }
   ],
   "accessors": [
@@ -37,18 +53,40 @@
       "count": 8,
       "type": "VEC3",
       "max": [
-        0.35,
-        0.35,
-        0.45
+        0.42,
+        0.42,
+        0.48
       ],
       "min": [
-        -0.35,
-        -0.35,
-        -0.45
+        -0.42,
+        -0.42,
+        -0.15
       ]
     },
     {
       "bufferView": 1,
+      "componentType": 5123,
+      "count": 36,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 8,
+      "type": "VEC3",
+      "max": [
+        0.04,
+        -0.42,
+        -0.15
+      ],
+      "min": [
+        -0.04,
+        -0.35,
+        -0.55
+      ]
+    },
+    {
+      "bufferView": 3,
       "componentType": 5123,
       "count": 36,
       "type": "SCALAR"
@@ -57,6 +95,7 @@
   "bufferViews": [
     {
       "buffer": 0,
+      "byteOffset": 0,
       "byteLength": 96,
       "target": 34962
     },
@@ -65,11 +104,23 @@
       "byteOffset": 96,
       "byteLength": 72,
       "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 168,
+      "byteLength": 96,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 264,
+      "byteLength": 72,
+      "target": 34963
     }
   ],
   "buffers": [
     {
-      "byteLength": 168,
+      "byteLength": 336,
       "uri": "balloon-placeholder.bin"
     }
   ]
