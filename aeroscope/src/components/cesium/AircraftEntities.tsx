@@ -17,7 +17,8 @@ import {
 import { getAircraftModelConfig } from "../../config/aircraftModels";
 import type { AircraftState } from "../../store/useAircraftStore";
 import {
-  passesCategoryFilter,
+  passesClassFilter,
+  passesWakeFilter,
   useAircraftStore,
 } from "../../store/useAircraftStore";
 import { useCesiumStore } from "../../store/useCesiumStore";
@@ -44,7 +45,7 @@ function applyModelStyle(
   if (!entity.model) return;
 
   const color = STATUS_COLORS[ac.status] ?? "#ffffff";
-  const config = getAircraftModelConfig(ac.aircraftCategory);
+  const config = getAircraftModelConfig(ac.aircraftClass, ac.wakeCategory);
   const heightRef = ac.onGround
     ? HeightReference.CLAMP_TO_GROUND
     : HeightReference.NONE;
@@ -72,7 +73,7 @@ function applyModelStyle(
 
 function createAircraftEntity(viewer: Viewer, ac: AircraftState): Entity {
   const color = STATUS_COLORS[ac.status] ?? "#ffffff";
-  const modelConfig = getAircraftModelConfig(ac.aircraftCategory);
+  const modelConfig = getAircraftModelConfig(ac.aircraftClass, ac.wakeCategory);
   const heightRef = ac.onGround
     ? HeightReference.CLAMP_TO_GROUND
     : HeightReference.NONE;
@@ -151,7 +152,7 @@ export function AircraftEntities() {
     const syncAll = () => {
       if (!isViewerLive(viewer)) return;
 
-      const { aircraft, selectedId, categoryFilter, trafficViewMode } =
+      const { aircraft, selectedId, classFilter, wakeFilter, trafficViewMode } =
         useAircraftStore.getState();
       const cameraRect =
         trafficViewMode === "aircraft" ? getCameraRect(viewer) : null;
@@ -169,7 +170,9 @@ export function AircraftEntities() {
           !cameraRect ||
           isLatLonInCameraRect(ac.rawLat, ac.rawLon, cameraRect);
         const visible =
-          passesCategoryFilter(ac.aircraftCategory, categoryFilter) && inView;
+          passesClassFilter(ac.aircraftClass, classFilter) &&
+          passesWakeFilter(ac.wakeCategory, wakeFilter) &&
+          inView;
 
         if (!map.has(ac.id)) {
           map.set(ac.id, createAircraftEntity(viewer, ac));

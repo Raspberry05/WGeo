@@ -1,7 +1,8 @@
 import { MdAirplanemodeActive, MdHeight, MdSpeed } from "react-icons/md";
 import { enrichSelectedAircraft } from "../../services/aircraftEnrichment";
 import {
-  passesCategoryFilter,
+  passesClassFilter,
+  passesWakeFilter,
   useAircraftStore,
 } from "../../store/useAircraftStore";
 import { formatAltitudeFeet, formatSpeedKnots } from "../../utils/flightUnits";
@@ -20,16 +21,16 @@ const STATUS_COLORS: Record<string, string> = {
 export function AircraftList() {
   const aircraft = useAircraftStore((s) => s.aircraft);
   const selectedId = useAircraftStore((s) => s.selectedId);
-  const categoryFilter = useAircraftStore((s) => s.categoryFilter);
+  const classFilter = useAircraftStore((s) => s.classFilter);
+  const wakeFilter = useAircraftStore((s) => s.wakeFilter);
   const selectAircraft = useAircraftStore((s) => s.selectAircraft);
   const requestCameraFly = useAircraftStore((s) => s.requestCameraFly);
 
   const list = Object.values(aircraft)
-    .filter((ac) =>
-      passesCategoryFilter(
-        ac.aircraftCategory,
-        categoryFilter,
-      ),
+    .filter(
+      (ac) =>
+        passesClassFilter(ac.aircraftClass, classFilter) &&
+        passesWakeFilter(ac.wakeCategory, wakeFilter),
     )
     .sort((a, b) => b.altitudeMeters - a.altitudeMeters);
 

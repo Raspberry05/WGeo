@@ -46,7 +46,8 @@ export interface StatusBarProps {
 export function StatusBar({ isMobile }: StatusBarProps) {
   const status = useAircraftStore((s) => s.connectionStatus);
   const aircraft = useAircraftStore((s) => s.aircraft);
-  const categoryFilter = useAircraftStore((s) => s.categoryFilter);
+  const classFilter = useAircraftStore((s) => s.classFilter);
+  const wakeFilter = useAircraftStore((s) => s.wakeFilter);
   const activeAirportId = useAircraftStore((s) => s.activeAirportId);
   const selectedId = useAircraftStore((s) => s.selectedId);
   const activeAirportPickEnabled = useAircraftStore(
@@ -60,8 +61,9 @@ export function StatusBar({ isMobile }: StatusBarProps) {
 
   const total = Object.keys(aircraft).length;
   const filtered = Object.values(aircraft).filter((ac) => {
-    if (!categoryFilter?.length) return true;
-    return categoryFilter.includes(ac.aircraftCategory);
+    const classOk = !classFilter?.length || (ac.aircraftClass !== null && classFilter.includes(ac.aircraftClass));
+    const wakeOk = !wakeFilter?.length || (ac.wakeCategory !== null && wakeFilter.includes(ac.wakeCategory));
+    return classOk && wakeOk;
   }).length;
 
   useEffect(() => {
@@ -296,7 +298,7 @@ export function StatusBar({ isMobile }: StatusBarProps) {
         }}
       >
         <HudIcon icon={MdAirplanemodeActive} size={15} muted />
-        {categoryFilter?.length ? `${filtered}/${total}` : total}
+        {classFilter?.length || wakeFilter?.length ? `${filtered}/${total}` : total}
         {!isMobile && " AIRCRAFT"}
       </span>
 

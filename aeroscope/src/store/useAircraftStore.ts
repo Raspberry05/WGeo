@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { DEFAULT_AIRPORT_ID } from "../data/airports";
 import type { FlightDetailDto } from "../lib/aeroapi/types";
-import type { AircraftCategory } from "@/domain/aircraft/aircraftCategory";
+import type { AircraftClass, WakeTurbulenceCategory } from "@/domain/aircraft/openAircraftType";
 
 export type AircraftStatus = "taxiing" | "airborne" | "landing" | "parked";
 export type CameraFlyTarget = "airport" | "aircraft";
@@ -37,7 +37,8 @@ export interface AircraftState {
   positionTimeMs: number | null;
   aircraftType: string;
   categoryCode: number | null;
-  aircraftCategory: AircraftCategory;
+  aircraftClass: AircraftClass | null;
+  wakeCategory: WakeTurbulenceCategory | null;
   originCountry: string;
   operatorName: string | null;
   aircraftModel: string | null;
@@ -62,7 +63,8 @@ interface AircraftStore {
   cameraFlyToken: number;
   cameraFlyTarget: CameraFlyTarget;
   cameraFlyTargetId: string | null;
-  categoryFilter: AircraftCategory[] | null;
+  classFilter: AircraftClass[] | null;
+  wakeFilter: WakeTurbulenceCategory[] | null;
   airportCatalogReady: boolean;
   hoveredAirportId: string | null;
   hoverScreen: { x: number; y: number } | null;
@@ -89,7 +91,8 @@ interface AircraftStore {
   requestCameraFly: (target: CameraFlyTarget, id?: string) => void;
   setConnectionStatus: (s: "LIVE" | "SIMULATED" | "CONNECTING") => void;
   setCameraMode: (mode: CameraMode) => void;
-  setCategoryFilter: (codes: AircraftCategory[] | null) => void;
+  setClassFilter: (codes: AircraftClass[] | null) => void;
+  setWakeFilter: (codes: WakeTurbulenceCategory[] | null) => void;
   setAirportHover: (
     airportId: string | null,
     screen: { x: number; y: number } | null,
@@ -112,7 +115,8 @@ export const useAircraftStore = create<AircraftStore>((set) => ({
   cameraFlyToken: 0,
   cameraFlyTarget: "airport",
   cameraFlyTargetId: DEFAULT_AIRPORT_ID,
-  categoryFilter: null,
+  classFilter: null,
+  wakeFilter: null,
   airportCatalogReady: false,
   hoveredAirportId: null,
   hoverScreen: null,
@@ -196,15 +200,26 @@ export const useAircraftStore = create<AircraftStore>((set) => ({
     })),
   setConnectionStatus: (connectionStatus) => set({ connectionStatus }),
   setCameraMode: (cameraMode) => set({ cameraMode }),
-  setCategoryFilter: (categoryFilter) => set({ categoryFilter }),
+  setClassFilter: (classFilter) => set({ classFilter }),
+  setWakeFilter: (wakeFilter) => set({ wakeFilter }),
   setAirportHover: (hoveredAirportId, hoverScreen) =>
     set({ hoveredAirportId, hoverScreen }),
 }));
 
-export function passesCategoryFilter(
-  aircraftCategory: AircraftCategory,
-  filter: AircraftCategory[] | null,
+export function passesClassFilter(
+  aircraftClass: AircraftClass | null,
+  filter: AircraftClass[] | null,
 ): boolean {
   if (!filter || filter.length === 0) return true;
-  return filter.includes(aircraftCategory);
+  if (aircraftClass === null) return false;
+  return filter.includes(aircraftClass);
+}
+
+export function passesWakeFilter(
+  wakeCategory: WakeTurbulenceCategory | null,
+  filter: WakeTurbulenceCategory[] | null,
+): boolean {
+  if (!filter || filter.length === 0) return true;
+  if (wakeCategory === null) return false;
+  return filter.includes(wakeCategory);
 }

@@ -3,7 +3,7 @@ import { detailToAircraftPatch } from "../lib/aeroapi/mapFlightDetail";
 import type { AircraftState } from "../store/useAircraftStore";
 import { fetchFlightDetail, fetchFlightTrack } from "./flights";
 import { useAircraftStore } from "../store/useAircraftStore";
-import { resolveCategoryLabel } from "../utils/aircraftCategory";
+import { classifyAircraft } from "@/domain/aircraft/aircraftClassification";
 
 const enrichmentInflight = new Set<string>();
 const trackInflight = new Set<string>();
@@ -14,14 +14,10 @@ function applyDetailPatch(
 ): Partial<AircraftState> {
   const patch = detailToAircraftPatch(detail) as Partial<AircraftState>;
 
-  if (ac.categoryCode === null && detail.aircraftModel) {
-    const inferred = resolveCategoryLabel(
-      null,
-      ac.altitudeMeters,
-      ac.velocity,
-      ac.onGround,
-    );
-    patch.aircraftType = inferred.label;
+  if (detail.aircraftModel) {
+    const next = classifyAircraft({ aircraftModel: detail.aircraftModel });
+    if (next.aircraftClass) patch.aircraftClass = next.aircraftClass;
+    if (next.wakeCategory) patch.wakeCategory = next.wakeCategory;
   }
 
   return patch;

@@ -1,6 +1,6 @@
 import { feetToMeters, resolveAltitudeMeters } from "@/utils/geoMath";
 import { resolveCategoryLabel } from "@/utils/aircraftCategory";
-import { classifyAircraft } from "@/domain/aircraft/aircraftCategory";
+import { classifyAircraft } from "@/domain/aircraft/aircraftClassification";
 import { mapFlightToDetail } from "./mapFlightDetail";
 import type { AeroFlight } from "./types";
 import type { AircraftDto } from "./types";
@@ -67,15 +67,8 @@ export function mapFlightToDto(flight: AeroFlight): AircraftDto | null {
 
   const displayId = registration ?? ident ?? faFlightId;
   const detail = mapFlightToDetail(flight, { operatorName, aircraftModel });
-  const aircraftCategory = classifyAircraft({
+  const classification = classifyAircraft({
     aircraftModel,
-    operatorName,
-    callsign,
-    originAirport,
-    destinationAirport,
-    altitudeMeters,
-    velocityMs: velocity,
-    onGround,
   });
 
   return {
@@ -92,7 +85,8 @@ export function mapFlightToDto(flight: AeroFlight): AircraftDto | null {
     onGround,
     aircraftType: aircraftModel ?? label,
     categoryCode: null,
-    aircraftCategory,
+    aircraftClass: classification.aircraftClass,
+    wakeCategory: classification.wakeCategory,
     originCountry: "",
     operatorName,
     aircraftModel,

@@ -1,33 +1,35 @@
 import { useCallback } from "react";
-import { MdFilterList } from "react-icons/md";
-import { AIRCRAFT_CATEGORY_OPTIONS } from "@/domain/aircraft/aircraftCategory";
-import type { AircraftCategory } from "@/domain/aircraft/aircraftCategory";
+import { MdFilterAlt } from "react-icons/md";
+import {
+  AIRCRAFT_CLASS_OPTIONS,
+  type AircraftClass,
+} from "@/domain/aircraft/openAircraftType";
 import { useAircraftStore } from "../../store/useAircraftStore";
 import { HudPanel } from "./HudPanel";
 import { hudAccent, HUD_FONT_SM, hudText } from "./hudTheme";
 
-export function CategoryFilter() {
-  const filter = useAircraftStore((s) => s.categoryFilter);
-  const setCategoryFilter = useAircraftStore((s) => s.setCategoryFilter);
+export function ClassFilter() {
+  const filter = useAircraftStore((s) => s.classFilter);
+  const setClassFilter = useAircraftStore((s) => s.setClassFilter);
 
   const toggle = useCallback(
-    (code: AircraftCategory) => {
+    (code: AircraftClass) => {
       if (!filter) {
-        setCategoryFilter([code]);
+        setClassFilter([code]);
         return;
       }
       if (filter.includes(code)) {
         const next = filter.filter((c) => c !== code);
-        setCategoryFilter(next.length ? next : null);
+        setClassFilter(next.length ? next : null);
       } else {
-        setCategoryFilter([...filter, code]);
+        setClassFilter([...filter, code]);
       }
     },
-    [filter, setCategoryFilter],
+    [filter, setClassFilter],
   );
 
   return (
-    <HudPanel title="CATEGORY" titleIcon={MdFilterList} flexShrink={0}>
+    <HudPanel title="CLASS" titleIcon={MdFilterAlt} flexShrink={0}>
       <div
         style={{
           padding: "0 12px 10px",
@@ -37,7 +39,7 @@ export function CategoryFilter() {
       >
         <button
           type="button"
-          onClick={() => setCategoryFilter(null)}
+          onClick={() => setClassFilter(null)}
           style={{
             background: "transparent",
             border: "none",
@@ -59,7 +61,7 @@ export function CategoryFilter() {
           gap: "6px",
         }}
       >
-        {AIRCRAFT_CATEGORY_OPTIONS.map(({ code, label }) => {
+        {AIRCRAFT_CLASS_OPTIONS.map(({ code, label }) => {
           const on = !filter || filter.includes(code);
           return (
             <button
@@ -85,3 +87,4 @@ export function CategoryFilter() {
     </HudPanel>
   );
 }
+
