@@ -4,6 +4,19 @@ Vercel (and some Railway regions) **cannot open TCP connections** to `opensky-ne
 
 The proxy uses **stale-while-revalidate**: it answers Vercel in under ~1s (cache HIT/STALE or `503 warming`) and refreshes OpenSky in the background. That avoids **HTTP 499** on Railway when Vercel Hobby aborts slow requests (~10s).
 
+## Reading Railway HTTP logs
+
+| Log | Duration | Meaning |
+|-----|----------|---------|
+| `GET /states` **503** | ~10ms | Proxy answered immediately (`warming: true`). **Not** OpenSky data. |
+| `POST /token` **499** | ~7s | **Vercel** closed the connection while Railway still waited on `auth.opensky-network.org`. |
+| `GET /diagnose` **499** | 30s–1m | Browser or Railway edge closed before the old blocking probe finished (~90s sequential). |
+| `GET /diagnose` **200** | ~165ms | Cached diagnose JSON (`cached: true`) — check `"ok"` inside the body, not just HTTP 200. |
+
+**499 is always “client gave up waiting”.** The server may still be trying OpenSky in the background (`refresh failed … 45000ms` in deploy logs).
+
+Default **`GET /diagnose`** now returns in &lt;1s with the last probe + `refreshing: true`. Use **`GET /diagnose?full=1`** to wait up to `DIAGNOSE_PROBE_TIMEOUT_MS` (12s) for a fresh result.
+
 ## HTTP 499 vs 504 vs 408
 
 | Code | Where | Meaning |
@@ -72,6 +85,8 @@ Build uses **`Dockerfile`** (not Nixpacks) to avoid `$NIXPACKS_PATH` / Undefined
 |----------|---------|---------|
 | `NODE_OPTIONS` | — | `--dns-result-order=ipv4first` |
 | `UPSTREAM_TIMEOUT_MS` | `45000` | Background OpenSky fetch patience |
+| `SYNC_UPSTREAM_TIMEOUT_MS` | `8000` | `/token` — match Vercel client (~8s) to avoid 499 |
+| `DIAGNOSE_PROBE_TIMEOUT_MS` | `12000` | `/diagnose?full=1` and background probe |
 | `STATES_CACHE_TTL_MS` | `6000` | Fresh cache window (match app poll ~6s) |
 | `STALE_MAX_AGE_MS` | `120000` | Max age to serve `X-Cache: STALE` |
 | `WARM_INTERVAL_MS` | `0` (off) | Set `5000` to prefetch in background |

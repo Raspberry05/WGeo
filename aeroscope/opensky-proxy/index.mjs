@@ -11,7 +11,13 @@ const STATES_UPSTREAM =
   "https://opensky-network.org/api/states/all";
 const TOKEN_UPSTREAM =
   "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token";
+/** Background states refresh — can be long when OpenSky is slow but reachable. */
 const UPSTREAM_TIMEOUT_MS = Number(process.env.UPSTREAM_TIMEOUT_MS) || 45_000;
+/** Browser/Vercel-facing paths — must finish before clients disconnect (~7–10s). */
+const SYNC_UPSTREAM_TIMEOUT_MS =
+  Number(process.env.SYNC_UPSTREAM_TIMEOUT_MS) || 8_000;
+const DIAGNOSE_PROBE_TIMEOUT_MS =
+  Number(process.env.DIAGNOSE_PROBE_TIMEOUT_MS) || 12_000;
 const STATES_CACHE_TTL_MS = Number(process.env.STATES_CACHE_TTL_MS) || 6_000;
 const STALE_MAX_AGE_MS = Number(process.env.STALE_MAX_AGE_MS) || 120_000;
 const WARM_INTERVAL_MS = Number(process.env.WARM_INTERVAL_MS) || 0;
@@ -23,6 +29,9 @@ const statesCache = new Map();
 
 /** @type {Map<string, Promise<void>>} */
 const statesInflight = new Map();
+
+/** @type {Promise<void> | null} */
+let probeInflight = null;
 
 let lastProbe = {
   at: 0,
@@ -65,25 +74,32 @@ async function resolveOpenSkyIpv4() {
   }
 }
 
-async function probeUpstream() {
-  const now = Date.now();
-  if (now - lastProbe.at < PROBE_CACHE_MS) return lastProbe;
-
+async function runProbe(timeoutMs) {
   const dnsIpv4 = await resolveOpenSkyIpv4();
   const statesUrl = `${STATES_UPSTREAM}?lamin=0&lomin=0&lamax=1&lomax=1`;
   const statesStart = Date.now();
-  try {
-    const r = await httpsRequest(statesUrl, {
-      method: "GET",
-      timeoutMs: UPSTREAM_TIMEOUT_MS,
-    });
+  const authStart = Date.now();
+
+  const [statesResult, authResult] = await Promise.allSettled([
+    httpsRequest(statesUrl, { method: "GET", timeoutMs }),
+    httpsRequest(TOKEN_UPSTREAM, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: "grant_type=client_credentials&client_id=probe&client_secret=probe",
+      timeoutMs,
+    }),
+  ]);
+
+  if (statesResult.status === "fulfilled") {
+    const r = statesResult.value;
     lastProbe.states = {
       ok: r.status >= 200 && r.status < 300,
       ms: Date.now() - statesStart,
       status: r.status,
       error: null,
     };
-  } catch (err) {
+  } else {
+    const err = statesResult.reason;
     lastProbe.states = {
       ok: false,
       ms: Date.now() - statesStart,
@@ -92,21 +108,16 @@ async function probeUpstream() {
     };
   }
 
-  const authStart = Date.now();
-  try {
-    const r = await httpsRequest(TOKEN_UPSTREAM, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: "grant_type=client_credentials&client_id=probe&client_secret=probe",
-      timeoutMs: UPSTREAM_TIMEOUT_MS,
-    });
+  if (authResult.status === "fulfilled") {
+    const r = authResult.value;
     lastProbe.auth = {
       ok: r.status > 0,
       ms: Date.now() - authStart,
       status: r.status,
       error: null,
     };
-  } catch (err) {
+  } else {
+    const err = authResult.reason;
     lastProbe.auth = {
       ok: false,
       ms: Date.now() - authStart,
@@ -118,6 +129,58 @@ async function probeUpstream() {
   lastProbe.at = Date.now();
   lastProbe.dnsIpv4 = dnsIpv4;
   return lastProbe;
+}
+
+/** @param {{ force?: boolean; timeoutMs?: number }} [opts] */
+async function probeUpstream(opts = {}) {
+  const now = Date.now();
+  const timeoutMs = opts.timeoutMs ?? DIAGNOSE_PROBE_TIMEOUT_MS;
+  if (!opts.force && now - lastProbe.at < PROBE_CACHE_MS) return lastProbe;
+  return runProbe(timeoutMs);
+}
+
+function startProbeRefresh() {
+  if (probeInflight) return probeInflight;
+  probeInflight = runProbe(DIAGNOSE_PROBE_TIMEOUT_MS)
+    .catch((err) => {
+      console.error(
+        "[opensky-proxy] background probe failed:",
+        err instanceof Error ? err.message : String(err),
+      );
+    })
+    .finally(() => {
+      probeInflight = null;
+    });
+  return probeInflight;
+}
+
+function buildDiagnosePayload(probe, { cached = false, refreshing = false } = {}) {
+  const unreachable =
+    !probe.states.ok && probe.states.error?.includes("timeout");
+  return {
+    ok: probe.states.ok,
+    service: "opensky-proxy",
+    cached,
+    refreshing,
+    probeAgeMs: probe.at ? Date.now() - probe.at : null,
+    upstreamTimeoutMs: UPSTREAM_TIMEOUT_MS,
+    syncUpstreamTimeoutMs: SYNC_UPSTREAM_TIMEOUT_MS,
+    diagnoseProbeTimeoutMs: DIAGNOSE_PROBE_TIMEOUT_MS,
+    staleWhileRevalidate: true,
+    cacheEntries: statesCache.size,
+    inflight: statesInflight.size,
+    opensky: probe,
+    logHint:
+      "HTTP 499 = client disconnected before this server finished (browser/Vercel). GET /states 503 in ~10ms = cache warming, not OpenSky success.",
+    nextSteps: unreachable
+      ? [
+          "This host cannot reach OpenSky (datacenter egress blocked or filtered).",
+          "A fast HTTP 200 on /diagnose may be a cached result — check ok and opensky.states.ok.",
+          "Use ?full=1 to wait up to diagnoseProbeTimeoutMs for a fresh probe (may still 499 in browser if you cancel).",
+          "Run opensky-proxy on a network that can reach OpenSky (EU VPS or Cloudflare Tunnel).",
+        ]
+      : [],
+  };
 }
 
 async function fetchStatesUpstream(search) {
@@ -229,7 +292,7 @@ async function forwardToken(body, res) {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: body.toString("utf8"),
-      timeoutMs: UPSTREAM_TIMEOUT_MS,
+      timeoutMs: SYNC_UPSTREAM_TIMEOUT_MS,
     });
     res.writeHead(result.status, { "Content-Type": "application/json" });
     res.end(result.text);
@@ -262,6 +325,7 @@ const server = http.createServer(async (req, res) => {
           statesCacheTtlMs: STATES_CACHE_TTL_MS,
           staleMaxAgeMs: STALE_MAX_AGE_MS,
           upstreamTimeoutMs: UPSTREAM_TIMEOUT_MS,
+          syncUpstreamTimeoutMs: SYNC_UPSTREAM_TIMEOUT_MS,
           warmIntervalMs: WARM_INTERVAL_MS || null,
         }),
       );
@@ -269,30 +333,30 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (url.pathname === "/diagnose") {
-      const probe = await probeUpstream();
-      const unreachable =
-        !probe.states.ok &&
-        probe.states.error?.includes("timeout");
+      const full = url.searchParams.get("full") === "1";
+      const now = Date.now();
+      const probeFresh = lastProbe.at && now - lastProbe.at < PROBE_CACHE_MS;
+
+      if (full) {
+        const probe = await probeUpstream({
+          force: true,
+          timeoutMs: DIAGNOSE_PROBE_TIMEOUT_MS,
+        });
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(buildDiagnosePayload(probe, { cached: false })));
+        return;
+      }
+
+      if (!probeFresh) startProbeRefresh();
+
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(
-        JSON.stringify({
-          ok: probe.states.ok,
-          service: "opensky-proxy",
-          upstreamTimeoutMs: UPSTREAM_TIMEOUT_MS,
-          staleWhileRevalidate: true,
-          cacheEntries: statesCache.size,
-          inflight: statesInflight.size,
-          opensky: probe,
-          nextSteps: unreachable
-            ? [
-                "This host cannot reach OpenSky (datacenter egress blocked or filtered). Stale-while-revalidate and longer timeouts will not fix diagnose ok:false.",
-                "Run opensky-proxy on a network that can reach OpenSky (home PC + Cloudflare Tunnel, or EU VPS such as Oracle Always Free / Hetzner).",
-                "Verify from that host: curl -sS -m 10 'https://opensky-network.org/api/states/all?lamin=0&lomin=0&lamax=1&lomax=1' | head -c 200",
-                "Then set Vercel OPENSKY_STATES_URL and OPENSKY_TOKEN_URL to https://<working-host>/states and /token.",
-                "Railway often fails this probe; see opensky-proxy/README.md and cloudflare/CLOUDFLARE.md.",
-              ]
-            : [],
-        }),
+        JSON.stringify(
+          buildDiagnosePayload(lastProbe, {
+            cached: probeFresh,
+            refreshing: !probeFresh && Boolean(probeInflight),
+          }),
+        ),
       );
       return;
     }
