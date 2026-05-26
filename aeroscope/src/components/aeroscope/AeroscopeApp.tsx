@@ -11,7 +11,7 @@ import { HUD } from "@/components/hud/HUD";
 import { useAircraftSystemLifecycle } from "@/hooks/useAircraftSystemLifecycle";
 import { useViewportFlightPoll } from "@/hooks/useViewportFlightPoll";
 import { useAirportCatalogBootstrap } from "@/hooks/useAirportCatalogBootstrap";
-import { useCesiumStore } from "@/store/useCesiumStore";
+import { useBootPhase } from "@/hooks/useBootPhase";
 
 const CesiumViewer = lazy(() =>
   import("@/components/cesium/CesiumViewer").then((m) => ({
@@ -21,19 +21,20 @@ const CesiumViewer = lazy(() =>
 
 export default function AeroscopeApp() {
   const { catalogReady, catalogError } = useAirportCatalogBootstrap();
-  const globeBootReady = useCesiumStore((s) => s.globeBootReady);
+  const { phase: bootPhase, message: bootMessage } = useBootPhase(catalogError);
   useAircraftSystemLifecycle(catalogReady);
   useViewportFlightPoll();
+
+  const showBootOverlay = bootPhase !== null;
+  const showHud = catalogReady && !catalogError;
 
   return (
     <AppShell>
       <Suspense fallback={null}>
         <CesiumViewer />
       </Suspense>
-      {!globeBootReady && (
-        <LoadingOverlay message="Loading globe…" />
-      )}
-      {catalogReady && (
+      {showBootOverlay && <LoadingOverlay message={bootMessage} />}
+      {showHud && (
         <>
           <AircraftEntities />
           <AirportEntities />
@@ -41,9 +42,6 @@ export default function AeroscopeApp() {
           <ScenePickHandler />
           <HUD />
         </>
-      )}
-      {!catalogReady && !catalogError && (
-        <LoadingOverlay message="Loading airport catalog…" />
       )}
       {catalogError && (
         <LoadingOverlay message={catalogError} tone="error" />

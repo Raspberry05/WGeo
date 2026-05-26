@@ -88,7 +88,6 @@ export function tickMockSimulation(): AircraftState[] {
       originAirport: null,
       destinationAirport: null,
       flightDetail: null,
-      breadcrumb: [],
       lastUpdated: Date.now(),
       positionTimeMs: Date.now(),
     };

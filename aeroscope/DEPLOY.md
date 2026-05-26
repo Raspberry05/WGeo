@@ -35,6 +35,18 @@ Use `.env.local` locally (see `.env.example`).
 - **Install:** `npm install` (runs `postinstall` → copies Cesium to `public/cesium`)
 - **Build:** `npm run build`
 - **Dev:** `npm run dev` → http://localhost:3000
+- **Clean cache:** `npm run clean` — deletes `.next` (use before rebuild if dev shows 500 / `routes-manifest.json` missing)
+
+### Local troubleshooting (500 / corrupt `.next`)
+
+If the dev server logs `ENOENT routes-manifest.json`, `Cannot find module './331.js'`, or every route returns **500**, the `.next` folder is usually **partial or corrupted** (e.g. build interrupted while `next dev` was running).
+
+1. Stop the dev server (Ctrl+C).
+2. From `aeroscope/`: `npm run clean`
+3. `npm run build`
+4. `npm run dev`
+
+Do not run `next build` and `next dev` against the same `.next` folder at the same time.
 
 ## CORS
 
@@ -59,10 +71,12 @@ Implementation: `src/lib/aeroapi/` + `src/app/api/flights/`.
 | Mode | HUD toggle | Flight query | Airports |
 |------|------------|--------------|----------|
 | **Airport** (default) | Status bar → Airport | Bbox around active airport | Full catalog; small airports when zoomed in (&lt; 2M m camera height) |
-| **Aircraft / Viewport** | Status bar → Viewport | Camera view rectangle (max ~8° span) | Small airports only when zoomed in (&lt; 800 km height) |
+| **Aircraft / Viewport** | Status bar → Viewport | Camera view rectangle (max ~8° span when zoomed out) | **No airport markers** (hidden for clarity) |
 
-- Viewport mode caps rendered aircraft at **400** (nearest to map center).
+- Viewport mode filters aircraft to the **visible camera rectangle**, then caps at **800** if needed.
+- Airport mode shows global airports plus **small airports in the current viewport** (no zoom height gate).
 - Selecting a flight fetches enrich + track once (not on every poll).
+- **Flight trail** draws only when AeroAPI returns **≥ 2 historical track points**; no poll-based breadcrumb fallback.
 - Poll interval ~6s with ~5.5s server cache (see `src/config/aircraftMotion.ts`).
 
 ## Rate limits (Basic tier)

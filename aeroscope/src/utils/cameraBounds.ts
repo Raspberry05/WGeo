@@ -1,12 +1,24 @@
 import type { Viewer } from "cesium";
-import { VIEWPORT_BOUNDS_MAX_SPAN_DEG } from "@/config/trafficView";
+import {
+  VIEWPORT_BOUNDS_MAX_SPAN_DEG,
+  VIEWPORT_SEARCH_PADDING_RATIO,
+} from "@/config/trafficView";
 import type { FlightBounds } from "@/lib/aeroapi/bounds";
+import type { AircraftState } from "@/store/useAircraftStore";
+
+export type CameraRect = {
+  west: number;
+  south: number;
+  east: number;
+  north: number;
+};
 
 export type ViewportBoundsResult = {
   bounds: FlightBounds;
   centerLat: number;
   centerLon: number;
   clamped: boolean;
+  cameraRect: CameraRect;
 };
 
 function clampSpan(
@@ -23,8 +35,21 @@ function clampSpan(
   return { min: center - half, max: center + half, clamped: true };
 }
 
-/** Camera view rectangle as flight search bounds, capped to max span. */
-export function getViewportBounds(viewer: Viewer): ViewportBoundsResult | null {
+function padRect(rect: CameraRect, ratio: number): CameraRect {
+  const latSpan = rect.north - rect.south;
+  const lonSpan = rect.east - rect.west;
+  const latPad = latSpan * ratio;
+  const lonPad = lonSpan * ratio;
+  return {
+    south: rect.south - latPad,
+    north: rect.north + latPad,
+    west: rect.west - lonPad,
+    east: rect.east + lonPad,
+  };
+}
+
+/** Full camera rectangle in radians-derived degrees. */
+export function getCameraRect(viewer: Viewer): CameraRect | null {
   const rect = viewer.camera.computeViewRectangle();
   if (!rect) return null;
 
@@ -42,8 +67,54 @@ export function getViewportBounds(viewer: Viewer): ViewportBoundsResult | null {
     return null;
   }
 
-  const lat = clampSpan(south, north, VIEWPORT_BOUNDS_MAX_SPAN_DEG);
-  const lon = clampSpan(west, east, VIEWPORT_BOUNDS_MAX_SPAN_DEG);
+  return { west, south, east, north };
+}
+
+export function cameraRectToFlightBounds(rect: CameraRect): FlightBounds {
+  return {
+    lamin: rect.south,
+    lomin: rect.west,
+    lamax: rect.north,
+    lomax: rect.east,
+  };
+}
+
+export function isLatLonInCameraRect(
+  lat: number,
+  lon: number,
+  rect: CameraRect,
+): boolean {
+  if (lat < rect.south || lat > rect.north) return false;
+
+  if (rect.west <= rect.east) {
+    return lon >= rect.west && lon <= rect.east;
+  }
+
+  return lon >= rect.west || lon <= rect.east;
+}
+
+export function filterAircraftInCameraView(
+  viewer: Viewer,
+  aircraft: AircraftState[],
+): AircraftState[] {
+  const rect = getCameraRect(viewer);
+  if (!rect) return aircraft;
+  return aircraft.filter((ac) =>
+    isLatLonInCameraRect(ac.rawLat, ac.rawLon, rect),
+  );
+}
+
+/**
+ * Search bounds for AeroAPI (may clamp span) plus true camera rect for client filter.
+ */
+export function getViewportBounds(viewer: Viewer): ViewportBoundsResult | null {
+  const cameraRect = getCameraRect(viewer);
+  if (!cameraRect) return null;
+
+  const padded = padRect(cameraRect, VIEWPORT_SEARCH_PADDING_RATIO);
+
+  const lat = clampSpan(padded.south, padded.north, VIEWPORT_BOUNDS_MAX_SPAN_DEG);
+  const lon = clampSpan(padded.west, padded.east, VIEWPORT_BOUNDS_MAX_SPAN_DEG);
 
   const bounds: FlightBounds = {
     lamin: lat.min,
@@ -54,8 +125,9 @@ export function getViewportBounds(viewer: Viewer): ViewportBoundsResult | null {
 
   return {
     bounds,
-    centerLat: (lat.min + lat.max) / 2,
-    centerLon: (lon.min + lon.max) / 2,
+    centerLat: (cameraRect.south + cameraRect.north) / 2,
+    centerLon: (cameraRect.west + cameraRect.east) / 2,
     clamped: lat.clamped || lon.clamped,
+    cameraRect,
   };
 }

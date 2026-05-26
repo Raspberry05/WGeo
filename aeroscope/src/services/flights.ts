@@ -9,6 +9,10 @@ import {
   haversineKm,
 } from "../utils/geoMath";
 import { MAX_VIEWPORT_AIRCRAFT } from "../config/trafficView";
+import {
+  type CameraRect,
+  isLatLonInCameraRect,
+} from "../utils/cameraBounds";
 
 function boundsToQuery(bounds: AirportBounds | FlightBounds): string {
   const params = new URLSearchParams({
@@ -80,7 +84,6 @@ function dtoToAircraftState(
     flightDetail: dto.detail,
     lastUpdated: receivedAtMs,
     positionTimeMs: dto.positionTimeMs,
-    breadcrumb: [],
   };
 }
 
@@ -126,9 +129,14 @@ function sortByDistanceToCenter(
 export async function fetchFlightsInBounds(
   bounds: FlightBounds,
   scene: SceneReference,
-  options?: { maxAircraft?: number; centerLat?: number; centerLon?: number },
+  options?: {
+    maxAircraft?: number;
+    centerLat?: number;
+    centerLon?: number;
+    cameraRect?: CameraRect;
+  },
 ): Promise<AircraftState[]> {
-  const dtos = await fetchFlightsDto(bounds);
+  let dtos = await fetchFlightsDto(bounds);
   if (dtos.length === 0) return [];
 
   const receivedAtMs = Date.now();
@@ -139,11 +147,20 @@ export async function fetchFlightsInBounds(
     options?.centerLon ??
     (scene.mode === "airport" ? scene.airport.lon : scene.refLon);
 
+  if (scene.mode === "viewport" && options?.cameraRect) {
+    const rect = options.cameraRect;
+    dtos = dtos.filter((dto) =>
+      isLatLonInCameraRect(dto.rawLat, dto.rawLon, rect),
+    );
+    if (dtos.length === 0) return [];
+  }
+
   const max = options?.maxAircraft ?? MAX_VIEWPORT_AIRCRAFT;
-  const limited = sortByDistanceToCenter(dtos, centerLat, centerLon).slice(
-    0,
-    max,
-  );
+  const sorted = sortByDistanceToCenter(dtos, centerLat, centerLon);
+  const limited =
+    scene.mode === "viewport" && sorted.length <= max
+      ? sorted
+      : sorted.slice(0, max);
 
   const states = limited.map((dto) =>
     dtoToAircraftState(dto, scene, receivedAtMs),

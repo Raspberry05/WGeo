@@ -42,8 +42,6 @@ export interface AircraftState {
   originAirport: string | null;
   destinationAirport: string | null;
   flightDetail: FlightDetailDto | null;
-  /** Poll breadcrumb trail (lat/lon/alt). */
-  breadcrumb: TrackPoint[];
 }
 
 interface AircraftStore {

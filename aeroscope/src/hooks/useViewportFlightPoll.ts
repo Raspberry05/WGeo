@@ -13,6 +13,12 @@ export function useViewportFlightPoll(): void {
   const viewModeToken = useAircraftStore((s) => s.viewModeToken);
 
   useEffect(() => {
+    if (trafficViewMode === "aircraft" && viewer) {
+      requestAircraftPoll();
+    }
+  }, [trafficViewMode, viewModeToken, viewer]);
+
+  useEffect(() => {
     if (!viewer || trafficViewMode !== "aircraft") return;
 
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;

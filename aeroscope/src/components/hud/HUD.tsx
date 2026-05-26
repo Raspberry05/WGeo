@@ -9,6 +9,7 @@ import { AirportHoverTooltip } from "./AirportHoverTooltip";
 import { AirportPicker } from "./AirportPicker";
 import { CategoryFilter } from "./CategoryFilter";
 import { StatusBar } from "./StatusBar";
+import { TrafficViewToggle } from "./TrafficViewToggle";
 import {
   HUD_MOBILE_MEDIA,
   HUD_PANEL_GAP,
@@ -97,6 +98,7 @@ export function HUD() {
         <AircraftList />
       </HudSidebar>
       <AircraftInspector isMobile={isMobile} />
+      <TrafficViewToggle />
       <AirportHoverTooltip />
     </>
   );

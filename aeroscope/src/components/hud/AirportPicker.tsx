@@ -1,12 +1,12 @@
 import { useCallback, useMemo, useState } from "react";
+import { MdLocalAirport, MdSearch } from "react-icons/md";
 import { searchAirports } from "../../data/airportCatalog";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
-import {
-  selectActiveAirportId,
-} from "../../store/selectors";
+import { selectActiveAirportId } from "../../store/selectors";
 import { useAircraftStore } from "../../store/useAircraftStore";
 import { useHudStore } from "../../store/useHudStore";
 import { AirportPickerRow } from "./AirportPickerRow";
+import { HudIcon } from "./HudIcon";
 import { HudPanel } from "./HudPanel";
 import { hudMuted, HUD_FONT_SM } from "./hudTheme";
 
@@ -42,28 +42,43 @@ export function AirportPicker({ isMobile = false }: AirportPickerProps) {
   return (
     <HudPanel
       title="AIRPORTS"
+      titleIcon={MdLocalAirport}
       maxHeight={isMobile ? "min(38dvh, 280px)" : "38vh"}
       minHeight={isMobile ? "120px" : "160px"}
     >
       <div style={{ padding: "8px 10px", borderBottom: "1px solid #0d1f10" }}>
-        <input
-          type="search"
-          placeholder="ICAO, name, city…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          style={{
-            width: "100%",
-            boxSizing: "border-box",
-            padding: "8px 10px",
-            background: "rgba(0,16,32,0.9)",
-            border: "1px solid #1a3a2a",
-            borderRadius: "4px",
-            color: "#ccddcc",
-            fontFamily: "monospace",
-            fontSize: HUD_FONT_SM,
-            outline: "none",
-          }}
-        />
+        <div style={{ position: "relative" }}>
+          <HudIcon
+            icon={MdSearch}
+            size={16}
+            muted
+            style={{
+              position: "absolute",
+              left: "10px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              pointerEvents: "none",
+            }}
+          />
+          <input
+            type="search"
+            placeholder="ICAO, name, city…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              padding: "8px 10px 8px 34px",
+              background: "rgba(0,16,32,0.9)",
+              border: "1px solid #1a3a2a",
+              borderRadius: "4px",
+              color: "#ccddcc",
+              fontFamily: "monospace",
+              fontSize: HUD_FONT_SM,
+              outline: "none",
+            }}
+          />
+        </div>
       </div>
       <div style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
         {results.map((airport) => (

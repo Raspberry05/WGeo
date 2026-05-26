@@ -1,8 +1,9 @@
 import { getAirport } from "../data/airports";
 import { AIRCRAFT_POLL_INTERVAL_MS } from "../config/aircraftMotion";
-import { BREADCRUMB_MAX_POINTS } from "../config/trafficView";
+import { VIEWPORT_POLL_VIEWER_RETRY_MS } from "../config/trafficView";
+import type { CameraRect } from "../utils/cameraBounds";
 import { fetchFlightsInBounds } from "../services/flights";
-import { useAircraftStore, type AircraftState, type TrackPoint } from "../store/useAircraftStore";
+import { useAircraftStore, type AircraftState } from "../store/useAircraftStore";
 import { useCesiumStore } from "../store/useCesiumStore";
 import { getViewportBounds } from "../utils/cameraBounds";
 import type { FlightBounds } from "../lib/aeroapi/bounds";
@@ -20,25 +21,6 @@ export function requestAircraftPoll(): void {
   pollNow?.();
 }
 
-function appendBreadcrumb(
-  prev: TrackPoint[] | undefined,
-  lat: number,
-  lon: number,
-  altMeters: number,
-): TrackPoint[] {
-  const next: TrackPoint = {
-    lat,
-    lon,
-    altMeters,
-    timestamp: new Date().toISOString(),
-  };
-  const list = prev ? [...prev, next] : [next];
-  if (list.length > BREADCRUMB_MAX_POINTS) {
-    return list.slice(list.length - BREADCRUMB_MAX_POINTS);
-  }
-  return list;
-}
-
 function mergeAircraftRow(
   prev: AircraftState | undefined,
   ac: AircraftState,
@@ -51,12 +33,6 @@ function mergeAircraftRow(
     originAirport: prev.originAirport ?? ac.originAirport,
     destinationAirport: prev.destinationAirport ?? ac.destinationAirport,
     flightDetail: prev.flightDetail ?? ac.flightDetail,
-    breadcrumb: appendBreadcrumb(
-      prev.breadcrumb,
-      ac.rawLat,
-      ac.rawLon,
-      ac.altitudeMeters,
-    ),
   };
 }
 
@@ -82,6 +58,7 @@ export async function startAircraftSystem(): Promise<() => void> {
       | { mode: "viewport"; refLat: number; refLon: number };
     centerLat: number;
     centerLon: number;
+    cameraRect?: CameraRect;
   } | null => {
     const state = useAircraftStore.getState();
 
@@ -116,6 +93,7 @@ export async function startAircraftSystem(): Promise<() => void> {
       },
       centerLat: viewport.centerLat,
       centerLon: viewport.centerLon,
+      cameraRect: viewport.cameraRect,
     };
   };
 
@@ -125,7 +103,12 @@ export async function startAircraftSystem(): Promise<() => void> {
 
     const ctx = resolvePollContext();
     if (!ctx) {
-      scheduleNextPoll(AIRCRAFT_POLL_INTERVAL_MS);
+      const mode = useAircraftStore.getState().trafficViewMode;
+      const retryMs =
+        mode === "aircraft"
+          ? VIEWPORT_POLL_VIEWER_RETRY_MS
+          : AIRCRAFT_POLL_INTERVAL_MS;
+      scheduleNextPoll(retryMs);
       return;
     }
 
@@ -139,6 +122,7 @@ export async function startAircraftSystem(): Promise<() => void> {
       const fresh = await fetchFlightsInBounds(ctx.bounds, ctx.scene, {
         centerLat: ctx.centerLat,
         centerLon: ctx.centerLon,
+        cameraRect: ctx.cameraRect,
       });
       if (generation !== activeGeneration) return;
 

@@ -22,6 +22,7 @@ import {
 } from "../../store/useAircraftStore";
 import { useCesiumStore } from "../../store/useCesiumStore";
 import { getInterpolatedGeoState } from "../../systems/interpolationSystem";
+import { isLatLonInCameraRect, getCameraRect } from "../../utils/cameraBounds";
 import { formatSpeedKnots } from "../../utils/flightUnits";
 import {
   isViewerLive,
@@ -146,8 +147,10 @@ export function AircraftEntities() {
     const syncAll = () => {
       if (!isViewerLive(viewer)) return;
 
-      const { aircraft, selectedId, categoryFilter } =
+      const { aircraft, selectedId, categoryFilter, trafficViewMode } =
         useAircraftStore.getState();
+      const cameraRect =
+        trafficViewMode === "aircraft" ? getCameraRect(viewer) : null;
       const ids = new Set(Object.keys(aircraft));
 
       for (const [id, entity] of map) {
@@ -160,7 +163,11 @@ export function AircraftEntities() {
 
       for (const ac of Object.values(aircraft)) {
         const code = ac.categoryCode === null ? -1 : ac.categoryCode;
-        const visible = passesCategoryFilter(code, categoryFilter);
+        const inView =
+          !cameraRect ||
+          isLatLonInCameraRect(ac.rawLat, ac.rawLon, cameraRect);
+        const visible =
+          passesCategoryFilter(code, categoryFilter) && inView;
 
         if (!map.has(ac.id)) {
           map.set(ac.id, createAircraftEntity(viewer, ac));

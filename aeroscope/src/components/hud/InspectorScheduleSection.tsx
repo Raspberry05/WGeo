@@ -1,170 +1,143 @@
 import type { FlightDetailDto } from "@/lib/aeroapi/types";
+import { FaDoorClosed, FaDoorOpen } from "react-icons/fa6";
+import {
+  MdFlightLand,
+  MdFlightTakeoff,
+  MdInfoOutline,
+  MdLuggage,
+  MdSchedule,
+  MdTimer,
+} from "react-icons/md";
 import {
   formatDelayMinutes,
   formatFlightStatusLabel,
-  formatScheduleTime,
 } from "@/utils/flightScheduleDisplay";
+import { HudSectionTitle } from "./HudSectionTitle";
 import { InspectorField } from "./InspectorField";
-import { hudMuted, HUD_FONT_SM } from "./hudTheme";
+import { InspectorGrid } from "./InspectorGrid";
+import { InspectorScheduleTable } from "./InspectorScheduleTable";
+import { hexWithAlpha, hudAccent, HUD_FONT_SM } from "./hudTheme";
 
-function SectionTitle({ children }: { children: string }) {
+function StatusChips({ detail }: { detail: FlightDetailDto }) {
+  const chips: string[] = [];
+  if (detail.flightStatus) {
+    chips.push(formatFlightStatusLabel(detail.flightStatus));
+  }
+  if (detail.progressPercent != null) {
+    chips.push(`${Math.round(detail.progressPercent)}%`);
+  }
+  if (detail.flightType) {
+    chips.push(detail.flightType.toUpperCase());
+  }
+  if (detail.cancelled) chips.push("CANCELLED");
+  if (detail.diverted) chips.push("DIVERTED");
+  if (detail.blocked) chips.push("BLOCKED");
+
+  if (chips.length === 0) return null;
+
   return (
     <div
       style={{
-        marginTop: "12px",
-        marginBottom: "6px",
-        fontSize: HUD_FONT_SM,
-        color: hudMuted,
-        letterSpacing: "1.5px",
-        borderBottom: "1px solid #1a3a2a",
-        paddingBottom: "4px",
+        display: "flex",
+        flexWrap: "wrap",
+        gap: "6px",
+        marginTop: "4px",
       }}
     >
-      {children}
-    </div>
-  );
-}
-
-function ScheduleRow({
-  label,
-  scheduled,
-  estimated,
-  actual,
-}: {
-  label: string;
-  scheduled: string | null;
-  estimated: string | null;
-  actual: string | null;
-}) {
-  if (!scheduled && !estimated && !actual) return null;
-  return (
-    <InspectorField
-      label={label}
-      value={
-        <span style={{ display: "block", lineHeight: 1.5 }}>
-          {scheduled && (
-            <span>
-              SCH {formatScheduleTime(scheduled)}
-              <br />
-            </span>
-          )}
-          {estimated && (
-            <span>
-              EST {formatScheduleTime(estimated)}
-              <br />
-            </span>
-          )}
-          {actual && <span>ACT {formatScheduleTime(actual)}</span>}
-          {!scheduled && !estimated && !actual && "—"}
+      {chips.map((chip) => (
+        <span
+          key={chip}
+          style={{
+            fontSize: HUD_FONT_SM,
+            padding: "2px 8px",
+            borderRadius: "4px",
+            border: `1px solid ${hexWithAlpha(hudAccent, "44")}`,
+            color: hudAccent,
+          }}
+        >
+          {chip}
         </span>
-      }
-    />
+      ))}
+    </div>
   );
 }
 
 export interface InspectorScheduleSectionProps {
   detail: FlightDetailDto | null;
   trackLoading: boolean;
+  isMobile: boolean;
 }
 
 export function InspectorScheduleSection({
   detail,
   trackLoading,
+  isMobile,
 }: InspectorScheduleSectionProps) {
   if (!detail) {
     return (
-      <SectionTitle>
+      <HudSectionTitle icon={MdInfoOutline}>
         {trackLoading ? "LOADING FLIGHT DATA…" : "FLIGHT DATA"}
-      </SectionTitle>
+      </HudSectionTitle>
     );
   }
 
   return (
     <>
-      <SectionTitle>FLIGHT</SectionTitle>
-      <InspectorField
-        label="STATUS"
-        value={formatFlightStatusLabel(detail.flightStatus)}
-      />
-      {detail.progressPercent != null && (
+      <HudSectionTitle icon={MdInfoOutline}>FLIGHT</HudSectionTitle>
+      <StatusChips detail={detail} />
+
+      <HudSectionTitle icon={MdSchedule}>SCHEDULE (UTC)</HudSectionTitle>
+      <InspectorScheduleTable detail={detail} />
+
+      <HudSectionTitle icon={FaDoorOpen}>GATES</HudSectionTitle>
+      <InspectorGrid isMobile={isMobile} columns={isMobile ? 1 : 2}>
         <InspectorField
-          label="PROGRESS"
-          value={`${Math.round(detail.progressPercent)}%`}
+          layout="stack"
+          icon={FaDoorOpen}
+          label="ORIGIN GATE"
+          value={detail.gateOrigin ?? "—"}
         />
-      )}
-      {detail.flightType && (
-        <InspectorField label="TYPE" value={detail.flightType.toUpperCase()} />
-      )}
-      {(detail.cancelled || detail.diverted || detail.blocked) && (
         <InspectorField
-          label="FLAGS"
-          value={[
-            detail.cancelled && "CANCELLED",
-            detail.diverted && "DIVERTED",
-            detail.blocked && "BLOCKED",
-          ]
-            .filter(Boolean)
-            .join(" · ")}
+          layout="stack"
+          icon={FaDoorClosed}
+          label="DEST GATE"
+          value={detail.gateDestination ?? "—"}
         />
-      )}
+        <InspectorField
+          layout="stack"
+          icon={MdLuggage}
+          label="ORIGIN TERM"
+          value={detail.terminalOrigin ?? "—"}
+        />
+        <InspectorField
+          layout="stack"
+          icon={MdLuggage}
+          label="DEST TERM"
+          value={detail.terminalDestination ?? "—"}
+        />
+        <InspectorField
+          layout="stack"
+          icon={MdLuggage}
+          label="BAGGAGE"
+          value={detail.baggageClaim ?? "—"}
+        />
+      </InspectorGrid>
 
-      <SectionTitle>SCHEDULE (UTC)</SectionTitle>
-      <ScheduleRow
-        label="OUT"
-        scheduled={detail.scheduledOut}
-        estimated={detail.estimatedOut}
-        actual={detail.actualOut}
-      />
-      <ScheduleRow
-        label="OFF"
-        scheduled={detail.scheduledOff}
-        estimated={detail.estimatedOff}
-        actual={detail.actualOff}
-      />
-      <ScheduleRow
-        label="ON"
-        scheduled={detail.scheduledOn}
-        estimated={detail.estimatedOn}
-        actual={detail.actualOn}
-      />
-      <ScheduleRow
-        label="IN"
-        scheduled={detail.scheduledIn}
-        estimated={detail.estimatedIn}
-        actual={detail.actualIn}
-      />
-
-      <SectionTitle>GATES</SectionTitle>
-      <InspectorField
-        label="ORIGIN GATE"
-        value={detail.gateOrigin ?? "—"}
-      />
-      <InspectorField
-        label="DEST GATE"
-        value={detail.gateDestination ?? "—"}
-      />
-      <InspectorField
-        label="ORIGIN TERM"
-        value={detail.terminalOrigin ?? "—"}
-      />
-      <InspectorField
-        label="DEST TERM"
-        value={detail.terminalDestination ?? "—"}
-      />
-      <InspectorField
-        label="BAGGAGE"
-        value={detail.baggageClaim ?? "—"}
-      />
-
-      <SectionTitle>DELAYS</SectionTitle>
-      <InspectorField
-        label="DEPARTURE"
-        value={formatDelayMinutes(detail.departureDelay)}
-      />
-      <InspectorField
-        label="ARRIVAL"
-        value={formatDelayMinutes(detail.arrivalDelay)}
-      />
+      <HudSectionTitle icon={MdTimer}>DELAYS</HudSectionTitle>
+      <InspectorGrid isMobile={isMobile} columns={2}>
+        <InspectorField
+          layout="stack"
+          icon={MdFlightTakeoff}
+          label="DEPARTURE"
+          value={formatDelayMinutes(detail.departureDelay)}
+        />
+        <InspectorField
+          layout="stack"
+          icon={MdFlightLand}
+          label="ARRIVAL"
+          value={formatDelayMinutes(detail.arrivalDelay)}
+        />
+      </InspectorGrid>
     </>
   );
 }

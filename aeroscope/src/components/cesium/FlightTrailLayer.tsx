@@ -12,13 +12,13 @@ import { useAircraftStore } from "@/store/useAircraftStore";
 import { useCesiumStore } from "@/store/useCesiumStore";
 
 const TRAIL_COLOR = Color.fromCssColorString("#00ff8866");
+const MIN_TRACK_POINTS = 2;
 
 export function FlightTrailLayer() {
   const viewer = useCesiumStore((s) => s.viewer);
   const selectedId = useAircraftStore((s) => s.selectedId);
   const showTrail = useAircraftStore((s) => s.showTrail);
   const trackByFlightId = useAircraftStore((s) => s.trackByFlightId);
-  const aircraft = useAircraftStore((s) => s.aircraft);
 
   const collectionRef = useRef<PolylineCollection | null>(null);
 
@@ -45,21 +45,10 @@ export function FlightTrailLayer() {
 
     if (!showTrail || !selectedId) return;
 
-    const ac = aircraft[selectedId];
-    if (!ac) return;
-
     const apiTrack = trackByFlightId[selectedId];
-    const breadcrumb = ac.breadcrumb;
-    const points =
-      apiTrack && apiTrack.length >= 2
-        ? apiTrack
-        : breadcrumb.length >= 2
-          ? breadcrumb
-          : null;
+    if (!apiTrack || apiTrack.length < MIN_TRACK_POINTS) return;
 
-    if (!points || points.length < 2) return;
-
-    const positions = points.map((p) =>
+    const positions = apiTrack.map((p) =>
       Cartesian3.fromDegrees(p.lon, p.lat, p.altMeters),
     );
 
@@ -69,7 +58,7 @@ export function FlightTrailLayer() {
       material: Material.fromType("Color", { color: TRAIL_COLOR }),
       appearance: new PolylineMaterialAppearance(),
     });
-  }, [viewer, selectedId, showTrail, trackByFlightId, aircraft]);
+  }, [viewer, selectedId, showTrail, trackByFlightId]);
 
   return null;
 }

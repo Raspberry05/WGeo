@@ -1,9 +1,12 @@
+import { MdAirplanemodeActive, MdHeight, MdSpeed } from "react-icons/md";
 import { enrichSelectedAircraft } from "../../services/aircraftEnrichment";
 import {
   passesCategoryFilter,
   useAircraftStore,
 } from "../../store/useAircraftStore";
 import { formatAltitudeFeet, formatSpeedKnots } from "../../utils/flightUnits";
+import { AircraftStatusIcon } from "./AircraftStatusIcon";
+import { HudIcon } from "./HudIcon";
 import { HudPanel } from "./HudPanel";
 import { hudMuted, HUD_FONT_MD, HUD_FONT_SM, hudText } from "./hudTheme";
 
@@ -31,7 +34,11 @@ export function AircraftList() {
     .sort((a, b) => b.altitudeMeters - a.altitudeMeters);
 
   return (
-    <HudPanel title={`TRAFFIC · ${list.length}`} flex={1}>
+    <HudPanel
+      title={`TRAFFIC · ${list.length}`}
+      titleIcon={MdAirplanemodeActive}
+      flex={1}
+    >
       <div style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
         {list.map((ac) => {
           const color = STATUS_COLORS[ac.status] ?? "#ffffff";
@@ -69,8 +76,12 @@ export function AircraftList() {
                     color: isSelected ? color : "#ccddcc",
                     fontWeight: "bold",
                     fontSize: HUD_FONT_MD,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
                   }}
                 >
+                  <AircraftStatusIcon status={ac.status} size={14} color={color} />
                   {ac.callsign}
                 </div>
                 <div
@@ -87,8 +98,29 @@ export function AircraftList() {
                 </div>
               </div>
               <div style={{ textAlign: "right", color: hudText }}>
-                {formatAltitudeFeet(ac.altitudeMeters)}
-                <div style={{ fontSize: HUD_FONT_SM, color: hudMuted }}>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "flex-end",
+                    gap: "4px",
+                  }}
+                >
+                  <HudIcon icon={MdHeight} size={12} muted />
+                  {formatAltitudeFeet(ac.altitudeMeters)}
+                </span>
+                <div
+                  style={{
+                    fontSize: HUD_FONT_SM,
+                    color: hudMuted,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "flex-end",
+                    gap: "4px",
+                    marginTop: "2px",
+                  }}
+                >
+                  <HudIcon icon={MdSpeed} size={12} muted />
                   {formatSpeedKnots(ac.velocity)}
                 </div>
               </div>

@@ -1,6 +1,5 @@
 import { useCallback, useEffect } from "react";
 import type { Viewer } from "cesium";
-import { AIRPORT_SMALL_AIRPORT_MAX_CAMERA_M } from "../config/airportPointVisuals";
 import { getViewportIndex } from "../data/airportCatalog";
 import { useFullCatalogLoaded } from "./useFullCatalogLoaded";
 import type { AirportLayerRefs } from "../types/airportLayer";
@@ -11,37 +10,46 @@ export type UseAirportViewportLayerParams = {
   catalogReady: boolean;
   sceneTerrainReady: boolean;
   activeAirportId: string;
+  trafficViewMode: "airport" | "aircraft";
+  viewModeToken: number;
   layer: AirportLayerRefs;
 };
+
+function clearSmallAirportBillboards(layer: AirportLayerRefs): void {
+  if (!layer.points) return;
+  const collection = layer.points;
+  for (const id of layer.smallAirportIds) {
+    const primitive = layer.primitiveById.get(id);
+    if (primitive) {
+      collection.remove(primitive);
+      layer.primitiveById.delete(id);
+    }
+  }
+  layer.smallAirportIds.clear();
+}
 
 export function useAirportViewportLayer({
   viewer,
   catalogReady,
   sceneTerrainReady,
   activeAirportId,
+  trafficViewMode,
+  viewModeToken,
   layer,
 }: UseAirportViewportLayerParams): void {
   const fullCatalogLoaded = useFullCatalogLoaded();
 
   const syncSmallAirportsInView = useCallback(
     (v: Viewer) => {
-      if (!fullCatalogLoaded || !layer.points) return;
-
-      const height = v.camera.positionCartographic.height;
-      const collection = layer.points;
-      const heights = layer.sampler?.cache ?? new Map();
-
-      if (height >= AIRPORT_SMALL_AIRPORT_MAX_CAMERA_M) {
-        for (const id of layer.smallAirportIds) {
-          const primitive = layer.primitiveById.get(id);
-          if (primitive) {
-            collection.remove(primitive);
-            layer.primitiveById.delete(id);
-          }
-        }
-        layer.smallAirportIds.clear();
+      if (trafficViewMode !== "airport") {
+        clearSmallAirportBillboards(layer);
         return;
       }
+
+      if (!fullCatalogLoaded || !layer.points) return;
+
+      const collection = layer.points;
+      const heights = layer.sampler?.cache ?? new Map();
 
       const rect = v.camera.computeViewRectangle();
       if (!rect) return;
@@ -79,18 +87,30 @@ export function useAirportViewportLayer({
         layer.smallAirportIds.add(record.id);
       }
     },
-    [fullCatalogLoaded, layer, activeAirportId],
+    [fullCatalogLoaded, layer, activeAirportId, trafficViewMode],
   );
 
   useEffect(() => {
     if (!viewer || !catalogReady) return;
+    if (trafficViewMode !== "airport") {
+      clearSmallAirportBillboards(layer);
+      return;
+    }
     if (fullCatalogLoaded) {
       syncSmallAirportsInView(viewer);
     }
-  }, [viewer, catalogReady, fullCatalogLoaded, syncSmallAirportsInView]);
+  }, [
+    viewer,
+    catalogReady,
+    fullCatalogLoaded,
+    trafficViewMode,
+    viewModeToken,
+    syncSmallAirportsInView,
+    layer,
+  ]);
 
   useEffect(() => {
-    if (!viewer || !catalogReady) return;
+    if (!viewer || !catalogReady || trafficViewMode !== "airport") return;
 
     const onMoveEnd = (): void => {
       syncSmallAirportsInView(viewer);
@@ -105,5 +125,13 @@ export function useAirportViewportLayer({
     return () => {
       viewer.camera.moveEnd.removeEventListener(onMoveEnd);
     };
-  }, [viewer, catalogReady, sceneTerrainReady, syncSmallAirportsInView, layer]);
+  }, [
+    viewer,
+    catalogReady,
+    sceneTerrainReady,
+    trafficViewMode,
+    viewModeToken,
+    syncSmallAirportsInView,
+    layer,
+  ]);
 }

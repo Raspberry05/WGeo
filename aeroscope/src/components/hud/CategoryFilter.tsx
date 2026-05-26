@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { MdFilterList } from "react-icons/md";
 import { FILTERABLE_CATEGORIES } from "../../utils/aircraftCategory";
 import { useAircraftStore } from "../../store/useAircraftStore";
 import { HudPanel } from "./HudPanel";
@@ -25,7 +26,7 @@ export function CategoryFilter() {
   );
 
   return (
-    <HudPanel title="CATEGORY" flexShrink={0}>
+    <HudPanel title="CATEGORY" titleIcon={MdFilterList} flexShrink={0}>
       <div
         style={{
           padding: "0 12px 10px",

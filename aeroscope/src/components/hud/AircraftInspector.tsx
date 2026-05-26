@@ -1,8 +1,24 @@
+import {
+  MdAccessTime,
+  MdAirlines,
+  MdCategory,
+  MdExplore,
+  MdHeight,
+  MdMyLocation,
+  MdPlace,
+  MdPublic,
+  MdRoute,
+  MdScale,
+  MdSpeed,
+  MdStraighten,
+  MdTimeline,
+} from "react-icons/md";
 import { useAircraftStore } from "../../store/useAircraftStore";
 import {
   formatDistanceToAirport,
   routeDistanceNm,
 } from "../../utils/aircraftDistance";
+import { hasValidApiTrack } from "../../utils/flightTrack";
 import {
   AirportFlag,
   CountryFlagByName,
@@ -14,9 +30,11 @@ import {
   formatUtcDateTime,
 } from "../../utils/flightUnits";
 import { formatRouteSummary } from "../../utils/routeDisplay";
+import { AircraftStatusIcon } from "./AircraftStatusIcon";
 import { AlternatingWeight } from "./AlternatingWeight";
 import { InspectorScheduleSection } from "./InspectorScheduleSection";
 import { InspectorField } from "./InspectorField";
+import { InspectorGrid } from "./InspectorGrid";
 import {
   hexWithAlpha,
   hudMuted,
@@ -38,6 +56,7 @@ export function AircraftInspector({ isMobile }: AircraftInspectorProps) {
   const setCameraMode = useAircraftStore((s) => s.setCameraMode);
   const cameraMode = useAircraftStore((s) => s.cameraMode);
   const trackLoadingId = useAircraftStore((s) => s.trackLoadingId);
+  const trackByFlightId = useAircraftStore((s) => s.trackByFlightId);
   const showTrail = useAircraftStore((s) => s.showTrail);
   const setShowTrail = useAircraftStore((s) => s.setShowTrail);
 
@@ -45,6 +64,7 @@ export function AircraftInspector({ isMobile }: AircraftInspectorProps) {
   if (!ac) return null;
 
   const layout = inspectorLayout(isMobile);
+  const hasTrack = hasValidApiTrack(trackByFlightId, ac.id);
 
   const STATUS_COLORS: Record<string, string> = {
     airborne: "#00ff88",
@@ -73,7 +93,7 @@ export function AircraftInspector({ isMobile }: AircraftInspectorProps) {
         right: layout.right,
         width: layout.width,
         maxHeight: layout.maxHeight,
-        overflowY: isMobile ? "auto" : undefined,
+        overflowY: "auto",
         zIndex: 101,
         ...hudPanelStyle,
         border: `1px solid ${hexWithAlpha(color, "44")}`,
@@ -101,76 +121,157 @@ export function AircraftInspector({ isMobile }: AircraftInspectorProps) {
             >
               {ac.callsign}
             </div>
-            <div style={{ color: hudMuted, fontSize: HUD_FONT_SM }}>
+            <div
+              style={{
+                color: hudMuted,
+                fontSize: HUD_FONT_SM,
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <AircraftStatusIcon status={ac.status} size={14} color={color} />
               {(ac.registration ?? ac.icao24).toUpperCase()}
             </div>
           </div>
         </div>
       </div>
 
-      <InspectorField label="CATEGORY" value={ac.aircraftType} />
-      <InspectorField label="BRAND / TYPE" value={brand} />
-      <InspectorField
-        label="ROUTE"
-        value={
-          hasAnyRoute ? (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-              <AirportFlag icao={ac.originAirport} />
-              {origin}
-              <span style={{ color: hudMuted }}>→</span>
-              <AirportFlag icao={ac.destinationAirport} />
-              {destination}
-            </span>
-          ) : (
-            <span style={{ color: hudMuted }}>No flight plan</span>
-          )
-        }
-      />
-      {routeNm !== null && (
+      <InspectorGrid isMobile={isMobile} columns={isMobile ? 1 : 2}>
         <InspectorField
-          label="ROUTE DIST"
-          value={`${routeNm < 10 ? routeNm.toFixed(1) : Math.round(routeNm)} NM`}
+          layout="stack"
+          icon={MdHeight}
+          label="ALTITUDE"
+          value={formatAltitudeFeet(ac.altitudeMeters)}
         />
-      )}
-      <InspectorField
-        label="FROM FIELD"
-        value={formatDistanceToAirport(ac.rawLat, ac.rawLon, activeAirportId)}
-      />
-      <InspectorField label="REG. COUNTRY" value={ac.originCountry || "—"} />
-      <InspectorField label="STATUS" value={ac.status.toUpperCase()} />
-      <InspectorField label="ALTITUDE" value={formatAltitudeFeet(ac.altitudeMeters)} />
-      <InspectorField label="SPEED" value={formatSpeedKnots(ac.velocity)} />
-      <InspectorField label="HEADING" value={`${Math.round(ac.heading)}°`} />
-      <InspectorField
-        label="WEIGHT (EST)"
-        value={<AlternatingWeight massKg={massKg} />}
-      />
-      <InspectorField label="LAST FIX" value={formatUtcDateTime(ac.lastUpdated)} />
+        <InspectorField
+          layout="stack"
+          icon={MdSpeed}
+          label="SPEED"
+          value={formatSpeedKnots(ac.velocity)}
+        />
+        <InspectorField
+          layout="stack"
+          icon={MdExplore}
+          label="HEADING"
+          value={`${Math.round(ac.heading)}°`}
+        />
+        <InspectorField
+          layout="stack"
+          label="STATUS"
+          value={
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+              <AircraftStatusIcon status={ac.status} size={14} color={color} />
+              {ac.status.toUpperCase()}
+            </span>
+          }
+        />
+        <InspectorField
+          layout="stack"
+          icon={MdAccessTime}
+          label="LAST FIX"
+          value={formatUtcDateTime(ac.lastUpdated)}
+        />
+      </InspectorGrid>
+
+      <InspectorGrid isMobile={isMobile} columns={isMobile ? 1 : 2}>
+        <InspectorField
+          layout="stack"
+          icon={MdCategory}
+          label="CATEGORY"
+          value={ac.aircraftType}
+        />
+        <InspectorField
+          layout="stack"
+          icon={MdAirlines}
+          label="BRAND / TYPE"
+          value={brand}
+        />
+        <div style={{ gridColumn: isMobile ? undefined : "1 / -1" }}>
+          <InspectorField
+            layout="stack"
+            icon={MdRoute}
+            label="ROUTE"
+            value={
+              hasAnyRoute ? (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                  <AirportFlag icao={ac.originAirport} />
+                  {origin}
+                  <span style={{ color: hudMuted }}>→</span>
+                  <AirportFlag icao={ac.destinationAirport} />
+                  {destination}
+                </span>
+              ) : (
+                <span style={{ color: hudMuted }}>No flight plan</span>
+              )
+            }
+          />
+        </div>
+        {routeNm !== null && (
+          <InspectorField
+            layout="stack"
+            icon={MdStraighten}
+            label="ROUTE DIST"
+            value={`${routeNm < 10 ? routeNm.toFixed(1) : Math.round(routeNm)} NM`}
+          />
+        )}
+        <InspectorField
+          layout="stack"
+          icon={MdPlace}
+          label="FROM FIELD"
+          value={formatDistanceToAirport(ac.rawLat, ac.rawLon, activeAirportId)}
+        />
+        <InspectorField
+          layout="stack"
+          icon={MdPublic}
+          label="REG. COUNTRY"
+          value={ac.originCountry || "—"}
+        />
+        <InspectorField
+          layout="stack"
+          icon={MdScale}
+          label="WEIGHT (EST)"
+          value={<AlternatingWeight massKg={massKg} />}
+        />
+      </InspectorGrid>
 
       <InspectorScheduleSection
         detail={ac.flightDetail}
         trackLoading={trackLoadingId === ac.id}
+        isMobile={isMobile}
       />
 
-      <button
-        type="button"
-        onClick={() => setShowTrail(!showTrail)}
-        style={{
-          marginTop: "12px",
-          width: "100%",
-          minHeight: isMobile ? HUD_TOUCH_MIN : undefined,
-          padding: "8px",
-          background: showTrail ? hexWithAlpha(color, "15") : "transparent",
-          border: `1px solid ${hexWithAlpha(color, "44")}`,
-          color,
-          fontFamily: "monospace",
-          fontSize: HUD_FONT_SM,
-          cursor: "pointer",
-          borderRadius: "4px",
-        }}
-      >
-        {showTrail ? "TRAIL ON" : "TRAIL OFF"}
-      </button>
+      {hasTrack && (
+        <button
+          type="button"
+          onClick={() => setShowTrail(!showTrail)}
+          style={{
+            marginTop: "12px",
+            width: "100%",
+            minHeight: isMobile ? HUD_TOUCH_MIN : undefined,
+            padding: "8px",
+            background: showTrail ? hexWithAlpha(color, "15") : "transparent",
+            border: `1px solid ${hexWithAlpha(color, "44")}`,
+            color,
+            fontFamily: "monospace",
+            fontSize: HUD_FONT_SM,
+            cursor: "pointer",
+            borderRadius: "4px",
+          }}
+        >
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+            }}
+          >
+            <MdTimeline size={16} color={color} aria-hidden />
+            {showTrail ? "TRAIL ON" : "TRAIL OFF"}
+          </span>
+        </button>
+      )}
 
       <button
         type="button"
@@ -193,7 +294,17 @@ export function AircraftInspector({ isMobile }: AircraftInspectorProps) {
           letterSpacing: "1px",
         }}
       >
-        {cameraMode === "follow" ? "FOLLOWING" : "FOLLOW"}
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "8px",
+          }}
+        >
+          <MdMyLocation size={16} color={color} aria-hidden />
+          {cameraMode === "follow" ? "FOLLOWING" : "FOLLOW"}
+        </span>
       </button>
     </div>
   );

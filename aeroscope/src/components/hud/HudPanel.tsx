@@ -1,8 +1,11 @@
 import { memo, type ReactNode } from "react";
+import type { IconType } from "react-icons";
+import { HudIcon } from "./HudIcon";
 import { hudMuted, hudPanelStyle, HUD_FONT_SM } from "./hudTheme";
 
 export interface HudPanelProps {
   title: string;
+  titleIcon?: IconType;
   children: ReactNode;
   maxHeight?: string;
   minHeight?: string;
@@ -12,6 +15,7 @@ export interface HudPanelProps {
 
 export const HudPanel = memo(function HudPanel({
   title,
+  titleIcon,
   children,
   maxHeight,
   minHeight,
@@ -39,9 +43,13 @@ export const HudPanel = memo(function HudPanel({
           color: hudMuted,
           letterSpacing: "1px",
           fontSize: HUD_FONT_SM,
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
         }}
       >
-        {title}
+        {titleIcon && <HudIcon icon={titleIcon} size={15} muted />}
+        <span>{title}</span>
       </div>
       {children}
     </div>

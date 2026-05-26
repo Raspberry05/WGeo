@@ -22,6 +22,8 @@ export type UseActiveAirportOverlayParams = {
   catalogReady: boolean;
   sceneTerrainReady: boolean;
   activeAirportId: string;
+  trafficViewMode: "airport" | "aircraft";
+  viewModeToken: number;
   layer: AirportLayerRefs;
 };
 
@@ -30,6 +32,8 @@ export function useActiveAirportOverlay({
   catalogReady,
   sceneTerrainReady,
   activeAirportId,
+  trafficViewMode,
+  viewModeToken,
   layer,
 }: UseActiveAirportOverlayParams): void {
   const prevActiveIdRef = useRef<string | null>(null);
@@ -38,6 +42,19 @@ export function useActiveAirportOverlay({
 
   useEffect(() => {
     if (!isViewerLive(viewer) || !catalogReady) return;
+
+    const removeOverlay = (): void => {
+      safeRemoveEntity(viewer, activeEllipseRef.current);
+      activeEllipseRef.current = null;
+      safeRemoveEntity(viewer, activeLabelRef.current);
+      activeLabelRef.current = null;
+    };
+
+    if (trafficViewMode !== "airport") {
+      removeOverlay();
+      prevActiveIdRef.current = null;
+      return;
+    }
 
     const prev = prevActiveIdRef.current;
 
@@ -51,14 +68,7 @@ export function useActiveAirportOverlay({
       layer.sampler?.sampleActive(activeAirportId);
     }
 
-    if (activeEllipseRef.current) {
-      viewer.entities.remove(activeEllipseRef.current);
-      activeEllipseRef.current = null;
-    }
-    if (activeLabelRef.current) {
-      viewer.entities.remove(activeLabelRef.current);
-      activeLabelRef.current = null;
-    }
+    removeOverlay();
 
     if (!isAirportCatalogLoaded()) return;
 
@@ -99,10 +109,15 @@ export function useActiveAirportOverlay({
     });
 
     return () => {
-      safeRemoveEntity(viewer, activeEllipseRef.current);
-      activeEllipseRef.current = null;
-      safeRemoveEntity(viewer, activeLabelRef.current);
-      activeLabelRef.current = null;
+      removeOverlay();
     };
-  }, [viewer, catalogReady, activeAirportId, sceneTerrainReady, layer]);
+  }, [
+    viewer,
+    catalogReady,
+    activeAirportId,
+    sceneTerrainReady,
+    trafficViewMode,
+    viewModeToken,
+    layer,
+  ]);
 }
