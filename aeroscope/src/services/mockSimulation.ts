@@ -68,6 +68,8 @@ export function tickMockSimulation(): AircraftState[] {
 
     return {
       id: f.id,
+      faFlightId: f.id,
+      registration: f.callsign,
       callsign: f.callsign,
       icao24: f.id,
       position,
@@ -80,11 +82,14 @@ export function tickMockSimulation(): AircraftState[] {
       status,
       aircraftType: "Uncategorized",
       categoryCode: null,
+      aircraftClass: null,
+      wakeCategory: null,
       originCountry: "United States",
       operatorName: null,
       aircraftModel: null,
       originAirport: null,
       destinationAirport: null,
+      flightDetail: null,
       lastUpdated: Date.now(),
       positionTimeMs: Date.now(),
     };

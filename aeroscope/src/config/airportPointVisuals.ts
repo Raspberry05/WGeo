@@ -27,8 +27,11 @@ export const AIRPORT_ACTIVE_HEIGHT_M = 30;
  */
 export const AIRPORT_POINT_DISABLE_DEPTH_TEST_M = 120_000;
 
-/** Show small_airport dots when camera is below this height (m). */
+/** Show small_airport dots when camera is below this height (m) — airport traffic mode. */
 export const AIRPORT_SMALL_AIRPORT_MAX_CAMERA_M = 2_000_000;
+
+/** Stricter threshold in aircraft traffic mode (less map clutter). */
+export const AIRPORT_SMALL_AIRPORT_AIRCRAFT_MODE_MAX_CAMERA_M = 800_000;
 
 /** Max airports to terrain-sample per idle chunk. */
 export const AIRPORT_TERRAIN_SAMPLE_CHUNK = 500;

@@ -1,4 +1,4 @@
-/** Minimum time between OpenSky polls (measured from end of previous fetch). */
+/** Minimum time between flight API polls (measured from end of previous fetch). */
 export const AIRCRAFT_POLL_INTERVAL_MS = 6000;
 
 /**

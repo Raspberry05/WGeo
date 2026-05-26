@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 
 /**
  * CORS for /api/* — see https://vercel.com/kb/guide/how-to-enable-cors
- * Aeroscope UI calls same-origin /api/opensky; these headers help preview/custom domains.
+ * Aeroscope UI calls same-origin /api/flights; these headers help preview/custom domains.
  */
 
 const ALLOW_METHODS = "GET, POST, OPTIONS";

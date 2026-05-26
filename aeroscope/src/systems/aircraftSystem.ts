@@ -1,7 +1,12 @@
 import { getAirport } from "../data/airports";
 import { AIRCRAFT_POLL_INTERVAL_MS } from "../config/aircraftMotion";
-import { fetchOpenSkyAircraft } from "../services/opensky";
-import { useAircraftStore } from "../store/useAircraftStore";
+import { VIEWPORT_POLL_VIEWER_RETRY_MS } from "../config/trafficView";
+import type { CameraRect } from "../utils/cameraBounds";
+import { fetchFlightsInBounds } from "../services/flights";
+import { useAircraftStore, type AircraftState } from "../store/useAircraftStore";
+import { useCesiumStore } from "../store/useCesiumStore";
+import { getViewportBounds } from "../utils/cameraBounds";
+import type { FlightBounds } from "../lib/aeroapi/bounds";
 import {
   removeInterpolationTarget,
   setInterpolationTarget,
@@ -9,6 +14,27 @@ import {
 } from "./interpolationSystem";
 
 let activeGeneration = 0;
+let pollNow: (() => void) | null = null;
+
+/** Immediate poll when viewport changes (aircraft traffic mode). */
+export function requestAircraftPoll(): void {
+  pollNow?.();
+}
+
+function mergeAircraftRow(
+  prev: AircraftState | undefined,
+  ac: AircraftState,
+): AircraftState {
+  if (!prev) return ac;
+  return {
+    ...ac,
+    operatorName: prev.operatorName ?? ac.operatorName,
+    aircraftModel: prev.aircraftModel ?? ac.aircraftModel,
+    originAirport: prev.originAirport ?? ac.originAirport,
+    destinationAirport: prev.destinationAirport ?? ac.destinationAirport,
+    flightDetail: prev.flightDetail ?? ac.flightDetail,
+  };
+}
 
 export async function startAircraftSystem(): Promise<() => void> {
   const generation = ++activeGeneration;
@@ -25,19 +51,79 @@ export async function startAircraftSystem(): Promise<() => void> {
     }, delayMs);
   };
 
+  const resolvePollContext = (): {
+    bounds: FlightBounds;
+    scene:
+      | { mode: "airport"; airport: ReturnType<typeof getAirport> }
+      | { mode: "viewport"; refLat: number; refLon: number };
+    centerLat: number;
+    centerLon: number;
+    cameraRect?: CameraRect;
+  } | null => {
+    const state = useAircraftStore.getState();
+
+    if (state.trafficViewMode === "airport") {
+      const airport = getAirport(state.activeAirportId);
+      return {
+        bounds: airport.bounds,
+        scene: { mode: "airport", airport },
+        centerLat: airport.lat,
+        centerLon: airport.lon,
+      };
+    }
+
+    const viewer = useCesiumStore.getState().viewer;
+    if (!viewer) return null;
+
+    const viewport = getViewportBounds(viewer);
+    if (!viewport) return null;
+
+    useAircraftStore.getState().setViewportMeta({
+      clamped: viewport.clamped,
+      sceneRefLat: viewport.centerLat,
+      sceneRefLon: viewport.centerLon,
+    });
+
+    return {
+      bounds: viewport.bounds,
+      scene: {
+        mode: "viewport",
+        refLat: viewport.centerLat,
+        refLon: viewport.centerLon,
+      },
+      centerLat: viewport.centerLat,
+      centerLon: viewport.centerLon,
+      cameraRect: viewport.cameraRect,
+    };
+  };
+
   const fetchReal = async (): Promise<void> => {
     if (generation !== activeGeneration) return;
     if (inFlight) return;
+
+    const ctx = resolvePollContext();
+    if (!ctx) {
+      const mode = useAircraftStore.getState().trafficViewMode;
+      const retryMs =
+        mode === "aircraft"
+          ? VIEWPORT_POLL_VIEWER_RETRY_MS
+          : AIRCRAFT_POLL_INTERVAL_MS;
+      scheduleNextPoll(retryMs);
+      return;
+    }
 
     inFlight = true;
     const fetchStartedMs = Date.now();
 
     const state = useAircraftStore.getState();
-    const airport = getAirport(state.activeAirportId);
     const current = state.aircraft;
 
     try {
-      const fresh = await fetchOpenSkyAircraft(airport);
+      const fresh = await fetchFlightsInBounds(ctx.bounds, ctx.scene, {
+        centerLat: ctx.centerLat,
+        centerLon: ctx.centerLon,
+        cameraRect: ctx.cameraRect,
+      });
       if (generation !== activeGeneration) return;
 
       const receivedAtMs = Date.now();
@@ -45,7 +131,7 @@ export async function startAircraftSystem(): Promise<() => void> {
 
       if (fresh.length === 0) {
         console.warn(
-          "OpenSky returned 0 aircraft in this region — check /api/health on the server (Vercel env vars + redeploy)",
+          "No aircraft in this region — check /api/health (AEROAPI_API_KEY on Vercel)",
         );
         useAircraftStore.getState().setConnectionStatus("CONNECTING");
         scheduleNextPoll(AIRCRAFT_POLL_INTERVAL_MS);
@@ -53,23 +139,13 @@ export async function startAircraftSystem(): Promise<() => void> {
       }
 
       const syncMeta: MotionSyncMeta = { receivedAtMs, fetchRttMs };
-      const next: Record<string, (typeof fresh)[0]> = {};
+      const next: Record<string, AircraftState> = {};
       const seen = new Set<string>();
 
       fresh.forEach((ac) => {
         seen.add(ac.id);
         setInterpolationTarget(current[ac.id], ac, syncMeta);
-        const prev = current[ac.id];
-        next[ac.id] = prev
-          ? {
-              ...ac,
-              operatorName: prev.operatorName ?? ac.operatorName,
-              aircraftModel: prev.aircraftModel ?? ac.aircraftModel,
-              originAirport: prev.originAirport ?? ac.originAirport,
-              destinationAirport:
-                prev.destinationAirport ?? ac.destinationAirport,
-            }
-          : ac;
+        next[ac.id] = mergeAircraftRow(current[ac.id], ac);
       });
 
       for (const id of Object.keys(current)) {
@@ -85,7 +161,7 @@ export async function startAircraftSystem(): Promise<() => void> {
       const nextDelay = Math.max(0, AIRCRAFT_POLL_INTERVAL_MS - elapsed);
       scheduleNextPoll(nextDelay);
     } catch (err) {
-      console.error("OpenSky fetch failed:", err);
+      console.error("Flight data fetch failed:", err);
       useAircraftStore.getState().setConnectionStatus("CONNECTING");
       scheduleNextPoll(AIRCRAFT_POLL_INTERVAL_MS);
     } finally {
@@ -93,10 +169,18 @@ export async function startAircraftSystem(): Promise<() => void> {
     }
   };
 
+  pollNow = () => {
+    if (pollTimer) clearTimeout(pollTimer);
+    void fetchReal();
+  };
+
   await fetchReal();
 
   const unsub = useAircraftStore.subscribe((state, prev) => {
-    if (state.airportChangeToken !== prev.airportChangeToken) {
+    if (
+      state.airportChangeToken !== prev.airportChangeToken ||
+      state.viewModeToken !== prev.viewModeToken
+    ) {
       if (pollTimer) clearTimeout(pollTimer);
       void fetchReal();
     }
@@ -104,6 +188,7 @@ export async function startAircraftSystem(): Promise<() => void> {
 
   return () => {
     activeGeneration += 1;
+    pollNow = null;
     if (pollTimer) clearTimeout(pollTimer);
     unsub();
   };

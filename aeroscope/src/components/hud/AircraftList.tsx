@@ -1,9 +1,13 @@
+import { MdAirplanemodeActive, MdHeight, MdSpeed } from "react-icons/md";
 import { enrichSelectedAircraft } from "../../services/aircraftEnrichment";
 import {
-  passesCategoryFilter,
+  passesClassFilter,
+  passesWakeFilter,
   useAircraftStore,
 } from "../../store/useAircraftStore";
 import { formatAltitudeFeet, formatSpeedKnots } from "../../utils/flightUnits";
+import { AircraftStatusIcon } from "./AircraftStatusIcon";
+import { HudIcon } from "./HudIcon";
 import { HudPanel } from "./HudPanel";
 import { hudMuted, HUD_FONT_MD, HUD_FONT_SM, hudText } from "./hudTheme";
 
@@ -17,21 +21,25 @@ const STATUS_COLORS: Record<string, string> = {
 export function AircraftList() {
   const aircraft = useAircraftStore((s) => s.aircraft);
   const selectedId = useAircraftStore((s) => s.selectedId);
-  const categoryFilter = useAircraftStore((s) => s.categoryFilter);
+  const classFilter = useAircraftStore((s) => s.classFilter);
+  const wakeFilter = useAircraftStore((s) => s.wakeFilter);
   const selectAircraft = useAircraftStore((s) => s.selectAircraft);
   const requestCameraFly = useAircraftStore((s) => s.requestCameraFly);
 
   const list = Object.values(aircraft)
-    .filter((ac) =>
-      passesCategoryFilter(
-        ac.categoryCode === null ? -1 : ac.categoryCode,
-        categoryFilter,
-      ),
+    .filter(
+      (ac) =>
+        passesClassFilter(ac.aircraftClass, classFilter) &&
+        passesWakeFilter(ac.wakeCategory, wakeFilter),
     )
     .sort((a, b) => b.altitudeMeters - a.altitudeMeters);
 
   return (
-    <HudPanel title={`TRAFFIC · ${list.length}`} flex={1}>
+    <HudPanel
+      title={`TRAFFIC · ${list.length}`}
+      titleIcon={MdAirplanemodeActive}
+      flex={1}
+    >
       <div style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
         {list.map((ac) => {
           const color = STATUS_COLORS[ac.status] ?? "#ffffff";
@@ -69,8 +77,12 @@ export function AircraftList() {
                     color: isSelected ? color : "#ccddcc",
                     fontWeight: "bold",
                     fontSize: HUD_FONT_MD,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
                   }}
                 >
+                  <AircraftStatusIcon status={ac.status} size={14} color={color} />
                   {ac.callsign}
                 </div>
                 <div
@@ -87,8 +99,29 @@ export function AircraftList() {
                 </div>
               </div>
               <div style={{ textAlign: "right", color: hudText }}>
-                {formatAltitudeFeet(ac.altitudeMeters)}
-                <div style={{ fontSize: HUD_FONT_SM, color: hudMuted }}>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "flex-end",
+                    gap: "4px",
+                  }}
+                >
+                  <HudIcon icon={MdHeight} size={12} muted />
+                  {formatAltitudeFeet(ac.altitudeMeters)}
+                </span>
+                <div
+                  style={{
+                    fontSize: HUD_FONT_SM,
+                    color: hudMuted,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "flex-end",
+                    gap: "4px",
+                    marginTop: "2px",
+                  }}
+                >
+                  <HudIcon icon={MdSpeed} size={12} muted />
                   {formatSpeedKnots(ac.velocity)}
                 </div>
               </div>

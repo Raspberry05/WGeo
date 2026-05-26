@@ -1,8 +1,12 @@
 import { useEffect, useRef } from "react";
-import { startAircraftSystem } from "../systems/aircraftSystem";
+import { requestAircraftPoll, startAircraftSystem } from "../systems/aircraftSystem";
+import { useAircraftStore } from "../store/useAircraftStore";
+import { useCesiumStore } from "../store/useCesiumStore";
 
 export function useAircraftSystemLifecycle(catalogReady: boolean): void {
   const cleanupRef = useRef<(() => void) | null>(null);
+  const viewer = useCesiumStore((s) => s.viewer);
+  const trafficViewMode = useAircraftStore((s) => s.trafficViewMode);
 
   useEffect(() => {
     if (!catalogReady) return;
@@ -23,4 +27,9 @@ export function useAircraftSystemLifecycle(catalogReady: boolean): void {
       cleanupRef.current = null;
     };
   }, [catalogReady]);
+
+  useEffect(() => {
+    if (!catalogReady || !viewer || trafficViewMode !== "aircraft") return;
+    requestAircraftPoll();
+  }, [catalogReady, viewer, trafficViewMode]);
 }

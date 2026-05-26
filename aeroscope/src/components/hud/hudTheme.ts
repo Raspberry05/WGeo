@@ -10,7 +10,8 @@ export const HUD_PANEL_GAP = 12;
 export const HUD_FONT_SM = 13;
 export const HUD_FONT_MD = 15;
 export const HUD_FONT_LG = 17;
-export const HUD_INSPECTOR_WIDTH = 300;
+export const HUD_INSPECTOR_WIDTH = 560;
+export const HUD_INSPECTOR_MAX_HEIGHT = "min(70dvh, calc(100vh - 88px))";
 export const HUD_TOUCH_MIN = 44;
 
 export const hudPanelStyle: CSSProperties = {
@@ -52,8 +53,8 @@ export function inspectorLayout(isMobile: boolean): {
   return {
     left: HUD_SIDEBAR_WIDTH + 16,
     right: "auto",
-    width: HUD_INSPECTOR_WIDTH,
-    maxHeight: "none",
+    width: `min(${HUD_INSPECTOR_WIDTH}px, calc(100vw - ${HUD_SIDEBAR_WIDTH + 32}px))`,
+    maxHeight: HUD_INSPECTOR_MAX_HEIGHT,
     bottom: 16,
   };
 }

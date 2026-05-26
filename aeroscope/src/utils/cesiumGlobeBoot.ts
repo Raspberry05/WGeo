@@ -1,9 +1,9 @@
 import type { Viewer } from "cesium";
 import { isViewerLive } from "./cesiumViewerReady";
 
-const DEFAULT_SETTLED_DEBOUNCE_MS = 500;
-const DEFAULT_TILE_TIMEOUT_MS = 20_000;
-const DEFAULT_MIN_DWELL_MS = 2500;
+const DEFAULT_SETTLED_DEBOUNCE_MS = 150;
+const DEFAULT_TILE_TIMEOUT_MS = 12_000;
+const DEFAULT_MIN_DWELL_MS = 400;
 
 export type WaitForGlobeTilesSettledOptions = {
   settledDebounceMs?: number;

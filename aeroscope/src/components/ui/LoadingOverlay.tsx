@@ -17,6 +17,7 @@ export function LoadingOverlay({
   tone = "muted",
 }: LoadingOverlayProps) {
   const { color } = TONE_STYLES[tone];
+  const hasBackdrop = tone !== "error";
 
   return (
     <div
@@ -26,6 +27,7 @@ export function LoadingOverlay({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        background: hasBackdrop ? "rgba(0, 8, 16, 0.94)" : "rgba(0, 8, 16, 0.92)",
         color,
         fontFamily: "monospace",
         fontSize: tone === "error" ? "14px" : "15px",
@@ -33,6 +35,7 @@ export function LoadingOverlay({
         pointerEvents: tone === "error" ? "auto" : "none",
         padding: tone === "error" ? "24px" : undefined,
         textAlign: "center",
+        letterSpacing: "0.5px",
       }}
     >
       {message}

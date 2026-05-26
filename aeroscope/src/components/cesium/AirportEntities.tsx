@@ -15,12 +15,16 @@ export function AirportEntities() {
   const sceneTerrainReady = useCesiumStore(selectSceneTerrainReady);
   const catalogReady = useAircraftStore(selectAirportCatalogReady);
   const activeAirportId = useAircraftStore(selectActiveAirportId);
+  const trafficViewMode = useAircraftStore((s) => s.trafficViewMode);
+  const viewModeToken = useAircraftStore((s) => s.viewModeToken);
 
   const layer = useAirportGlobalLayer({
     viewer,
     catalogReady,
     sceneTerrainReady,
     activeAirportId,
+    trafficViewMode,
+    viewModeToken,
   });
 
   useAirportViewportLayer({
@@ -28,6 +32,8 @@ export function AirportEntities() {
     catalogReady,
     sceneTerrainReady,
     activeAirportId,
+    trafficViewMode,
+    viewModeToken,
     layer,
   });
 
@@ -36,6 +42,8 @@ export function AirportEntities() {
     catalogReady,
     sceneTerrainReady,
     activeAirportId,
+    trafficViewMode,
+    viewModeToken,
     layer,
   });
 

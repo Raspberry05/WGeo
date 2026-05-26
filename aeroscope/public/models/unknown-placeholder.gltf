@@ -1,0 +1,76 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "Aeroscope"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "disc",
+      "mesh": 0
+    }
+  ],
+  "meshes": [
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0
+          },
+          "indices": 1,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 44,
+      "type": "VEC3",
+      "max": [
+        0.55,
+        0.07,
+        0.55
+      ],
+      "min": [
+        -0.55,
+        -0.07,
+        -0.55
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5123,
+      "count": 240,
+      "type": "SCALAR"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 528,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 528,
+      "byteLength": 480,
+      "target": 34963
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 1008,
+      "uri": "unknown-placeholder.bin"
+    }
+  ]
+}

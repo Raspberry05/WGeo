@@ -17,11 +17,13 @@ import {
 import { getAircraftModelConfig } from "../../config/aircraftModels";
 import type { AircraftState } from "../../store/useAircraftStore";
 import {
-  passesCategoryFilter,
+  passesClassFilter,
+  passesWakeFilter,
   useAircraftStore,
 } from "../../store/useAircraftStore";
 import { useCesiumStore } from "../../store/useCesiumStore";
 import { getInterpolatedGeoState } from "../../systems/interpolationSystem";
+import { isLatLonInCameraRect, getCameraRect } from "../../utils/cameraBounds";
 import { formatSpeedKnots } from "../../utils/flightUnits";
 import {
   isViewerLive,
@@ -43,7 +45,7 @@ function applyModelStyle(
   if (!entity.model) return;
 
   const color = STATUS_COLORS[ac.status] ?? "#ffffff";
-  const config = getAircraftModelConfig(ac.categoryCode);
+  const config = getAircraftModelConfig(ac.aircraftClass, ac.wakeCategory);
   const heightRef = ac.onGround
     ? HeightReference.CLAMP_TO_GROUND
     : HeightReference.NONE;
@@ -53,6 +55,11 @@ function applyModelStyle(
     config.scale * (ac.onGround ? 0.85 : 1),
   );
   entity.model.minimumPixelSize = new ConstantProperty(isSelected ? 56 : 44);
+  if (entity.model.runAnimations) {
+    entity.model.runAnimations = new ConstantProperty(
+      Boolean(config.runAnimations),
+    );
+  }
   entity.model.silhouetteSize = new ConstantProperty(isSelected ? 2.5 : 1.2);
   entity.model.colorBlendAmount = new ConstantProperty(
     isSelected ? 0.35 : 0.15,
@@ -66,7 +73,7 @@ function applyModelStyle(
 
 function createAircraftEntity(viewer: Viewer, ac: AircraftState): Entity {
   const color = STATUS_COLORS[ac.status] ?? "#ffffff";
-  const modelConfig = getAircraftModelConfig(ac.categoryCode);
+  const modelConfig = getAircraftModelConfig(ac.aircraftClass, ac.wakeCategory);
   const heightRef = ac.onGround
     ? HeightReference.CLAMP_TO_GROUND
     : HeightReference.NONE;
@@ -103,6 +110,7 @@ function createAircraftEntity(viewer: Viewer, ac: AircraftState): Entity {
       scale: modelConfig.scale * (ac.onGround ? 0.85 : 1),
       minimumPixelSize: 44,
       heightReference: heightRef,
+      ...(modelConfig.runAnimations ? { runAnimations: true } : {}),
       color: Color.fromCssColorString(color),
       silhouetteColor: Color.fromCssColorString(color),
       silhouetteSize: 1.2,
@@ -135,46 +143,44 @@ function createAircraftEntity(viewer: Viewer, ac: AircraftState): Entity {
 export function AircraftEntities() {
   const viewer = useCesiumStore((s) => s.viewer);
   const entityMapRef = useRef<Map<string, Entity>>(new Map());
-  const categoryMapRef = useRef<Map<string, number | null>>(new Map());
 
   useEffect(() => {
     if (!isViewerLive(viewer)) return;
 
     const map = entityMapRef.current;
-    const categoryMap = categoryMapRef.current;
 
     const syncAll = () => {
       if (!isViewerLive(viewer)) return;
 
-      const { aircraft, selectedId, categoryFilter } =
+      const { aircraft, selectedId, classFilter, wakeFilter, trafficViewMode } =
         useAircraftStore.getState();
+      const cameraRect =
+        trafficViewMode === "aircraft" ? getCameraRect(viewer) : null;
       const ids = new Set(Object.keys(aircraft));
 
       for (const [id, entity] of map) {
         if (!ids.has(id)) {
           viewer.entities.remove(entity);
           map.delete(id);
-          categoryMap.delete(id);
         }
       }
 
       for (const ac of Object.values(aircraft)) {
-        const code = ac.categoryCode === null ? -1 : ac.categoryCode;
-        const visible = passesCategoryFilter(code, categoryFilter);
+        const inView =
+          !cameraRect ||
+          isLatLonInCameraRect(ac.rawLat, ac.rawLon, cameraRect);
+        const visible =
+          passesClassFilter(ac.aircraftClass, classFilter) &&
+          passesWakeFilter(ac.wakeCategory, wakeFilter) &&
+          inView;
 
         if (!map.has(ac.id)) {
           map.set(ac.id, createAircraftEntity(viewer, ac));
-          categoryMap.set(ac.id, ac.categoryCode);
         }
 
         const entity = map.get(ac.id)!;
         entity.show = visible;
         if (!visible) continue;
-
-        const prevCategory = categoryMap.get(ac.id);
-        if (prevCategory !== ac.categoryCode) {
-          categoryMap.set(ac.id, ac.categoryCode);
-        }
 
         const isSelected = selectedId === ac.id;
         applyModelStyle(entity, ac, isSelected);
@@ -200,7 +206,6 @@ export function AircraftEntities() {
         safeRemoveEntity(viewer, entity);
       }
       map.clear();
-      categoryMap.clear();
     };
   }, [viewer]);
 

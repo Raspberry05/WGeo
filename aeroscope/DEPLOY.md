@@ -11,70 +11,77 @@
 
 | Variable | Scope | Description |
 |----------|--------|-------------|
-| `OPENSKY_CLIENT_ID` | Server | OpenSky OAuth client ID |
-| `OPENSKY_CLIENT_SECRET` | Server | OpenSky OAuth client secret |
+| `AEROAPI_API_KEY` | Server | FlightAware AeroAPI key ([My AeroAPI](https://www.flightaware.com/aeroapi/)) — header `x-apikey` |
 | `NEXT_PUBLIC_CESIUM_ION_TOKEN` | Client | [Cesium Ion](https://ion.cesium.com/) token |
-| `CORS_ALLOWED_ORIGINS` | Server (optional) | Comma-separated extra origins allowed to call `/api/*` (e.g. `https://my-domain.com`) |
+| `CORS_ALLOWED_ORIGINS` | Server (optional) | Comma-separated extra origins allowed to call `/api/*` |
 | `NEXT_PUBLIC_APP_URL` | Client (optional) | Canonical site URL — also added to CORS allow list |
-| `OPENSKY_STATES_URL` | Server (optional) | EU forward proxy, e.g. `https://<railway>/states` — **required if direct OpenSky times out on Vercel** |
-| `OPENSKY_TOKEN_URL` | Server (optional) | EU forward proxy, e.g. `https://<railway>/token` |
+| `AEROAPI_TIMEOUT_MS` | Server (optional) | Upstream timeout ms (default `8000`) |
 
 Use `.env.local` locally (see `.env.example`).
 
-### Vercel checklist (if OpenSky shows 0 aircraft)
+### Vercel checklist (if the map shows 0 aircraft)
 
 1. **Root Directory** must be `aeroscope` (not the repo root).
-2. Add `OPENSKY_CLIENT_ID` and `OPENSKY_CLIENT_SECRET` with scope **Production** and **Preview** (not only Development).
-3. Values must have **no quotes** and no trailing spaces (paste the raw client id/secret from OpenSky).
-4. **Redeploy** after changing env vars (existing deployments do not pick up new variables).
-5. Open `https://<your-app>/api/health` — expect `opensky.authOk: true`.
-   - `configured: false` → env vars are not visible to the server.
-   - `authError: "fetch failed"` → Vercel cannot reach the OpenSky auth host; add env `NODE_OPTIONS=--dns-result-order=ipv4first` (Production + Preview) and redeploy. The app will fall back to anonymous OpenSky when token fetch fails.
-6. Optional Vercel env: `NODE_OPTIONS` = `--dns-result-order=ipv4first`.
-7. **EU region (required):** OpenSky is in Europe; Vercel’s default is `iad1` (US). This repo sets **`vercel.json`** → `"regions": ["fra1"]` and `"functions": { "src/app/api/**/*.ts": { "regions": ["fra1"] } }`. **Redeploy** after merging. In `/api/health`, expect `vercelRegion: "fra1"` and `regionMismatch: false`. The Next.js `export const preferredRegion` on routes does **not** move Node.js functions — use `vercel.json` or **Vercel → Project → Settings → Functions → Function Region → Frankfurt**.
-8. **If Vercel cannot reach OpenSky:** use **Cloudflare Worker + Tunnel** (see **`opensky-proxy/cloudflare/CLOUDFLARE.md`**). Vercel → `*.workers.dev` → tunnel → your PC `opensky-proxy` → OpenSky. Set `BACKEND_ORIGIN` on the Worker to your `trycloudflare.com` URL. Local `npm run dev` works because OpenSky is called from your home network, not from Vercel’s datacenter.
+2. Add `AEROAPI_API_KEY` with scope **Production** and **Preview** (server-only, not `NEXT_PUBLIC_`).
+3. No quotes or trailing spaces in the key value.
+4. **Redeploy** after changing env vars.
+5. Open `https://<your-app>/api/health` — expect `aeroapi.authOk: true`.
+   - `configured: false` → `AEROAPI_API_KEY` is missing on the server.
+   - `authOk: false` → key invalid or AeroAPI account issue; verify in FlightAware → My AeroAPI.
+6. Optional: `vercel.json` sets `"regions": ["fra1"]` for EU functions (not required for AeroAPI).
 
 ## Build
 
 - **Install:** `npm install` (runs `postinstall` → copies Cesium to `public/cesium`)
 - **Build:** `npm run build`
 - **Dev:** `npm run dev` → http://localhost:3000
+- **Clean cache:** `npm run clean` — deletes `.next` (use before rebuild if dev shows 500 / `routes-manifest.json` missing)
+
+### Local troubleshooting (500 / corrupt `.next`)
+
+If the dev server logs `ENOENT routes-manifest.json`, `Cannot find module './331.js'`, or every route returns **500**, the `.next` folder is usually **partial or corrupted** (e.g. build interrupted while `next dev` was running).
+
+1. Stop the dev server (Ctrl+C).
+2. From `aeroscope/`: `npm run clean`
+3. `npm run build`
+4. `npm run dev`
+
+Do not run `next build` and `next dev` against the same `.next` folder at the same time.
 
 ## CORS
 
 Follows [Vercel: How to enable CORS](https://vercel.com/kb/guide/how-to-enable-cors):
 
-- **`src/middleware.ts`** — dynamic `Access-Control-Allow-Origin` for allowed origins (same host, `VERCEL_URL`, `CORS_ALLOWED_ORIGINS`)
-- **`next.config.ts` `headers()`** — baseline `Allow-Methods`, `Allow-Headers`, `Max-Age` on `/api/*`
+- **`src/middleware.ts`** — dynamic `Access-Control-Allow-Origin` for allowed origins
+- **`next.config.ts` `headers()`** — baseline headers on `/api/*`
 
-The Aeroscope UI calls **`/api/opensky` on the same Vercel host** (no cross-origin). CORS helps preview URLs and a separate frontend calling your API.
-
-If **Vercel Authentication / Deployment Protection** is on, keep **`/api` in the OPTIONS Allowlist** (default for new projects) so preflight succeeds.
-
-CORS does **not** fix server-side `CONNECT_TIMEOUT` to OpenSky.
-
-## OpenSky proxy, HTTP 499, and Vercel Hobby
-
-When using **Railway** (or any external proxy) with `OPENSKY_STATES_URL` / `OPENSKY_TOKEN_URL`:
-
-1. **`GET <proxy>/diagnose`** must return `"ok": true`. If you see `"ok": false` with `Upstream timeout after 45000ms`, the proxy host **cannot reach OpenSky** (common on **Railway**). Use an EU VPS or Cloudflare Tunnel from a network where OpenSky works — not longer timeouts.
-2. **HTTP 499** in Railway logs means **Vercel closed the connection** before the proxy finished (not the browser abandoning a large JSON body).
-3. **Vercel Hobby** caps API routes at **~10s** (`vercel.json` and route `maxDuration` are set to `10`). The proxy uses **stale-while-revalidate** so Vercel usually gets a response in under 2s; slow OpenSky fetches run in the background on Railway.
-4. **504** from the proxy means OpenSky did not respond within `UPSTREAM_TIMEOUT_MS` on the proxy (default **45s** for background refresh).
-
-| Layer | Hobby default | Notes |
-|-------|----------------|-------|
-| Vercel `maxDuration` | 10s | Hard cap on Hobby |
-| `OPENSKY_STATES_TIMEOUT_MS` | 8000 | Env override on Pro |
-| `OPENSKY_PROXY_DEADLINE_MS` | 9000 | Must be < `maxDuration` |
-| Railway `UPSTREAM_TIMEOUT_MS` | 45000 | Background only with SWR |
-
-See **`opensky-proxy/README.md`** for Railway env vars (`WARM_INTERVAL_MS`, `WARM_BOUNDS_QUERY`, etc.).
+The UI calls **`/api/flights` on the same Vercel host** (no cross-origin).
 
 ## API routes
 
-- `GET /api/opensky?lamin=&lomin=&lamax=&lomax=`
-- `GET /api/opensky/enrich/[icao24]`
-- `GET /api/health`
+- `GET /api/flights?lamin=&lomin=&lamax=&lomax=` — live aircraft in bbox (FlightAware `/flights/search`)
+- `GET /api/flights/enrich/[flightId]` — full flight detail: schedules, gates, delays (`fa_flight_id`, 5 min cache)
+- `GET /api/flights/[flightId]/track` — recent track positions for trail polyline (on select only, 5 min cache)
+- `GET /api/health` — AeroAPI probe + optional `aeroapi.usage` snippet
 
-Implementation: `src/lib/opensky/` + `src/app/api/`.
+Implementation: `src/lib/aeroapi/` + `src/app/api/flights/`.
+
+## Traffic view modes
+
+| Mode | HUD toggle | Flight query | Airports |
+|------|------------|--------------|----------|
+| **Airport** (default) | Status bar → Airport | Bbox around active airport | Full catalog; small airports when zoomed in (&lt; 2M m camera height) |
+| **Aircraft / Viewport** | Status bar → Viewport | Camera view rectangle (max ~8° span when zoomed out) | **No airport markers** (hidden for clarity) |
+
+- Viewport mode filters aircraft to the **visible camera rectangle**, then caps at **800** if needed.
+- Airport mode shows global airports plus **small airports in the current viewport** (no zoom height gate).
+- Selecting a flight fetches enrich + track once (not on every poll).
+- **Flight trail** draws only when AeroAPI returns **≥ 2 historical track points**; no poll-based breadcrumb fallback.
+- Poll interval ~6s with ~5.5s server cache (see `src/config/aircraftMotion.ts`).
+
+## Rate limits (Basic tier)
+
+- Poll interval ~6s with ~5.5s server cache (see `src/config/aircraftMotion.ts`).
+- AeroAPI search uses `max_pages=1` per request.
+- Enrich and track are cached **5 minutes** server-side; avoid rapid selection spam.
+- On **429**, the API may return 503; the client shows an empty map until the next poll.

@@ -1,48 +1,80 @@
+import type { FlightDetailDto } from "../lib/aeroapi/types";
+import { detailToAircraftPatch } from "../lib/aeroapi/mapFlightDetail";
 import type { AircraftState } from "../store/useAircraftStore";
-import { fetchAircraftEnrichment } from "./opensky";
+import { fetchFlightDetail, fetchFlightTrack } from "./flights";
 import { useAircraftStore } from "../store/useAircraftStore";
-import { resolveCategoryLabel } from "../utils/aircraftCategory";
+import { classifyAircraft } from "@/domain/aircraft/aircraftClassification";
 
 const enrichmentInflight = new Set<string>();
+const trackInflight = new Set<string>();
 
-export async function enrichSelectedAircraft(icao24: string): Promise<void> {
-  if (enrichmentInflight.has(icao24)) return;
-  enrichmentInflight.add(icao24);
+function applyDetailPatch(
+  ac: AircraftState,
+  detail: FlightDetailDto,
+): Partial<AircraftState> {
+  const patch = detailToAircraftPatch(detail) as Partial<AircraftState>;
+
+  if (detail.aircraftModel) {
+    const next = classifyAircraft({ aircraftModel: detail.aircraftModel });
+    if (next.aircraftClass) patch.aircraftClass = next.aircraftClass;
+    if (next.wakeCategory) patch.wakeCategory = next.wakeCategory;
+  }
+
+  return patch;
+}
+
+export async function enrichSelectedAircraft(flightId: string): Promise<void> {
+  if (enrichmentInflight.has(flightId)) return;
+  enrichmentInflight.add(flightId);
 
   try {
-    const data = await fetchAircraftEnrichment(icao24);
-    const ac = useAircraftStore.getState().aircraft[icao24];
+    const detail = await fetchFlightDetail(flightId);
+    if (!detail) return;
+
+    const ac = useAircraftStore.getState().aircraft[flightId];
     if (!ac) return;
 
-    const patch: Partial<AircraftState> = {};
-
-    if (data.operatorName != null) {
-      patch.operatorName = data.operatorName;
-    }
-    if (data.aircraftModel) {
-      patch.aircraftModel = data.aircraftModel;
-    }
-    if (data.originAirport) {
-      patch.originAirport = data.originAirport;
-    }
-    if (data.destinationAirport) {
-      patch.destinationAirport = data.destinationAirport;
-    }
-
-    if (ac.categoryCode === null && data.aircraftModel) {
-      const inferred = resolveCategoryLabel(
-        null,
-        ac.altitudeMeters,
-        ac.velocity,
-        ac.onGround,
-      );
-      patch.aircraftType = inferred.label;
-    }
-
+    const patch = applyDetailPatch(ac, detail);
     if (Object.keys(patch).length > 0) {
-      useAircraftStore.getState().enrichAircraft(icao24, patch);
+      useAircraftStore.getState().enrichAircraft(flightId, patch);
     }
   } finally {
-    enrichmentInflight.delete(icao24);
+    enrichmentInflight.delete(flightId);
+  }
+}
+
+export async function loadTrackForSelected(flightId: string): Promise<void> {
+  if (trackInflight.has(flightId)) return;
+
+  const ac = useAircraftStore.getState().aircraft[flightId];
+  if (!ac?.faFlightId) return;
+
+  const detail = ac.flightDetail;
+  if (detail?.blocked) {
+    useAircraftStore.getState().setTrackLoading(null);
+    return;
+  }
+
+  trackInflight.add(flightId);
+  useAircraftStore.getState().setTrackLoading(flightId);
+
+  try {
+    const track = await fetchFlightTrack(flightId);
+    if (useAircraftStore.getState().selectedId !== flightId) return;
+
+    useAircraftStore.getState().setTrackForFlight(
+      flightId,
+      track.positions.map((p) => ({
+        lat: p.lat,
+        lon: p.lon,
+        altMeters: p.altMeters,
+        timestamp: p.timestamp,
+      })),
+    );
+  } finally {
+    trackInflight.delete(flightId);
+    if (useAircraftStore.getState().trackLoadingId === flightId) {
+      useAircraftStore.getState().setTrackLoading(null);
+    }
   }
 }

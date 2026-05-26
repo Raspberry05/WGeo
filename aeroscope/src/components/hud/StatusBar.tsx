@@ -1,6 +1,19 @@
 import { useEffect } from "react";
+import { FaDoorOpen } from "react-icons/fa6";
+import {
+  MdAirplanemodeActive,
+  MdHeight,
+  MdLocalAirport,
+  MdMenu,
+  MdRoute,
+  MdSpeed,
+} from "react-icons/md";
 import { getAirport } from "../../data/airports";
-import { enrichSelectedAircraft } from "../../services/aircraftEnrichment";
+import {
+  enrichSelectedAircraft,
+  loadTrackForSelected,
+} from "../../services/aircraftEnrichment";
+import { formatScheduleTime } from "../../utils/flightScheduleDisplay";
 import { useAircraftStore } from "../../store/useAircraftStore";
 import { useHudStore } from "../../store/useHudStore";
 import {
@@ -22,6 +35,7 @@ import {
   hudText,
   statusBarPaddingLeft,
 } from "./hudTheme";
+import { HudIcon } from "./HudIcon";
 import { UtcClock } from "./UtcClock";
 import { WeatherPanel } from "./WeatherPanel";
 
@@ -32,7 +46,8 @@ export interface StatusBarProps {
 export function StatusBar({ isMobile }: StatusBarProps) {
   const status = useAircraftStore((s) => s.connectionStatus);
   const aircraft = useAircraftStore((s) => s.aircraft);
-  const categoryFilter = useAircraftStore((s) => s.categoryFilter);
+  const classFilter = useAircraftStore((s) => s.classFilter);
+  const wakeFilter = useAircraftStore((s) => s.wakeFilter);
   const activeAirportId = useAircraftStore((s) => s.activeAirportId);
   const selectedId = useAircraftStore((s) => s.selectedId);
   const activeAirportPickEnabled = useAircraftStore(
@@ -46,13 +61,15 @@ export function StatusBar({ isMobile }: StatusBarProps) {
 
   const total = Object.keys(aircraft).length;
   const filtered = Object.values(aircraft).filter((ac) => {
-    if (!categoryFilter?.length) return true;
-    const code = ac.categoryCode ?? -1;
-    return categoryFilter.includes(code);
+    const classOk = !classFilter?.length || (ac.aircraftClass !== null && classFilter.includes(ac.aircraftClass));
+    const wakeOk = !wakeFilter?.length || (ac.wakeCategory !== null && wakeFilter.includes(ac.wakeCategory));
+    return classOk && wakeOk;
   }).length;
 
   useEffect(() => {
-    if (selectedId) void enrichSelectedAircraft(selectedId);
+    if (!selectedId) return;
+    void enrichSelectedAircraft(selectedId);
+    void loadTrackForSelected(selectedId);
   }, [selectedId]);
 
   const connectionColor =
@@ -121,7 +138,7 @@ export function StatusBar({ isMobile }: StatusBarProps) {
             lineHeight: 1,
           }}
         >
-          ☰
+          <HudIcon icon={MdMenu} size={22} />
         </button>
       )}
 
@@ -147,8 +164,12 @@ export function StatusBar({ isMobile }: StatusBarProps) {
             overflow: "hidden",
             textOverflow: "ellipsis",
             maxWidth: isMobile ? "140px" : undefined,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
           }}
         >
+          <HudIcon icon={MdLocalAirport} size={16} />
           {isMobile ? airport.id : `${airport.id} · ${airport.name.toUpperCase()}`}
           {!activeAirportPickEnabled && !isMobile && (
             <span style={{ color: "#5a8a6a", marginLeft: "10px" }}>
@@ -185,11 +206,27 @@ export function StatusBar({ isMobile }: StatusBarProps) {
             <span style={{ color: "#5a7a6a" }}>|</span>
             <span>{selected.aircraftType}</span>
             <span style={{ color: "#5a7a6a" }}>|</span>
-            <span style={{ color: "#00ccff" }}>
+            <span
+              style={{
+                color: "#00ccff",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+              }}
+            >
+              <HudIcon icon={MdHeight} size={14} color="#00ccff" />
               {formatAltitudeFeet(selected.altitudeMeters)}
             </span>
             <span style={{ color: "#5a7a6a" }}>|</span>
-            <span style={{ color: "#00ccff" }}>
+            <span
+              style={{
+                color: "#00ccff",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+              }}
+            >
+              <HudIcon icon={MdSpeed} size={14} color="#00ccff" />
               {formatSpeedKnots(selected.velocity)}
             </span>
             {brand && (
@@ -200,6 +237,7 @@ export function StatusBar({ isMobile }: StatusBarProps) {
             )}
             <span style={{ color: "#5a7a6a" }}>|</span>
             <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+              <HudIcon icon={MdRoute} size={14} muted />
               {routeDisplay?.hasAnyRoute ? (
                 <>
                   <AirportFlag icao={selected.originAirport} />
@@ -215,14 +253,52 @@ export function StatusBar({ isMobile }: StatusBarProps) {
             {regIso && (
               <FlagIcon iso2={regIso} size={18} title={selected.originCountry} />
             )}
+            {selected.flightDetail && (
+              <>
+                <span style={{ color: "#5a7a6a" }}>|</span>
+                <span
+                  style={{
+                    color: hudMuted,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                  }}
+                >
+                  <HudIcon icon={FaDoorOpen} size={13} muted />
+                  {selected.flightDetail.gateOrigin
+                    ? `G${selected.flightDetail.gateOrigin}`
+                    : "—"}
+                  {" · "}
+                  ETD{" "}
+                  {formatScheduleTime(
+                    selected.flightDetail.estimatedOut ??
+                      selected.flightDetail.scheduledOut,
+                  )}
+                  {" · "}
+                  ETA{" "}
+                  {formatScheduleTime(
+                    selected.flightDetail.estimatedIn ??
+                      selected.flightDetail.scheduledIn,
+                  )}
+                </span>
+              </>
+            )}
           </span>
         </>
       )}
 
       <div style={{ flex: 1, minWidth: "8px" }} />
 
-      <span style={{ fontSize: isMobile ? HUD_FONT_SM : HUD_FONT_MD }}>
-        {categoryFilter?.length ? `${filtered}/${total}` : total}
+      <span
+        style={{
+          fontSize: isMobile ? HUD_FONT_SM : HUD_FONT_MD,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "6px",
+        }}
+      >
+        <HudIcon icon={MdAirplanemodeActive} size={15} muted />
+        {classFilter?.length || wakeFilter?.length ? `${filtered}/${total}` : total}
         {!isMobile && " AIRCRAFT"}
       </span>
 

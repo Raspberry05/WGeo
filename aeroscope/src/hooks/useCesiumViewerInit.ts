@@ -104,7 +104,7 @@ export function useCesiumViewerInit(
           waitForGlobeTilesSettled(viewer, {
             isCancelled: () => !isActive(),
           }),
-          waitMinDwell(2500),
+          waitMinDwell(400),
         ]);
 
         if (isActive() && isViewerLive(viewer)) {

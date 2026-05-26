@@ -1,81 +1,86 @@
+import type {
+  AircraftClass,
+  WakeTurbulenceCategory,
+} from "@/domain/aircraft/openAircraftType";
+
 /**
- * OpenSky category → GLTF mapping.
- * Replace URIs with downloaded models; see docs/AIRCRAFT_GLTF_SOURCES.md.
+ * Aircraft category → GLTF placeholder mapping.
+ * Regenerate models: node scripts/generate-placeholders.mjs
  */
 export interface AircraftModelConfig {
   uri: string;
   scale: number;
   minimumPixelSize: number;
+  /** Play embedded glTF animations (e.g. helicopter rotor spin). */
+  runAnimations?: boolean;
 }
 
 const MODELS = {
-  default: "/models/plane-placeholder.gltf",
+  plane: "/models/plane-placeholder.gltf",
   balloon: "/models/balloon-placeholder.gltf",
   glider: "/models/glider-placeholder.gltf",
   light: "/models/light-placeholder.gltf",
-  small: "/models/small-placeholder.gltf",
-  large: "/models/large-placeholder.gltf",
+  medium: "/models/medium-placeholder.gltf",
   heavy: "/models/heavy-placeholder.gltf",
+  helicopter: "/models/helicopter-placeholder.gltf",
+  unknown: "/models/unknown-placeholder.gltf",
 } as const;
 
-function scaleForCategory(categoryCode: number | null): number {
-  switch (categoryCode) {
-    case 2:
-      return 0.75;
-    case 3:
-      return 0.9;
-    case 4:
-    case 5:
-      return 1.35;
-    case 6:
-      return 1.65;
-    case 7:
-      return 0.95;
-    case 8:
-      return 0.65;
-    case 9:
-      return 0.85;
-    case 10:
-      return 1.1;
-    case 13:
-      return 0.35;
-    case 14:
-      return 0.45;
-    default:
-      return 1.0;
+function uriForClassAndWake(
+  aircraftClass: AircraftClass | null,
+  wakeCategory: WakeTurbulenceCategory | null,
+): { uri: string; runAnimations?: boolean } {
+  if (aircraftClass === "H") return { uri: MODELS.helicopter, runAnimations: true };
+  if (aircraftClass === "B") return { uri: MODELS.balloon };
+  if (aircraftClass === "G") return { uri: MODELS.glider };
+
+  if (wakeCategory === "L") return { uri: MODELS.light };
+  if (wakeCategory === "M") return { uri: MODELS.medium };
+  if (wakeCategory === "H" || wakeCategory === "J" || wakeCategory === "S") {
+    return { uri: MODELS.heavy };
   }
+
+  return { uri: MODELS.unknown };
 }
 
-function uriForCategory(categoryCode: number | null): string {
-  switch (categoryCode) {
-    case 10:
-      return MODELS.balloon;
-    case 9:
-      return MODELS.glider;
-    case 2:
-      return MODELS.light;
-    case 3:
-    case 7:
-      return MODELS.small;
-    case 4:
-    case 5:
-      return MODELS.large;
-    case 6:
-      return MODELS.heavy;
-    default:
-      return MODELS.default;
-  }
+function scaleForClassAndWake(
+  aircraftClass: AircraftClass | null,
+  wakeCategory: WakeTurbulenceCategory | null,
+): number {
+  if (aircraftClass === "H") return 0.92;
+  if (aircraftClass === "B") return 1.15;
+  if (aircraftClass === "G") return 0.9;
+  if (wakeCategory === "L") return 0.78;
+  if (wakeCategory === "M") return 1.0;
+  if (wakeCategory === "H" || wakeCategory === "J" || wakeCategory === "S") return 1.28;
+  return 0.9;
 }
 
 /**
- * Maps OpenSky emitter category to 3D model config.
+ * Maps heuristic aircraft category to 3D placeholder model config.
  */
 export function getAircraftModelConfig(
+  aircraftClass: AircraftClass | null,
+  wakeCategory: WakeTurbulenceCategory | null,
+): AircraftModelConfig {
+  const { uri, runAnimations } = uriForClassAndWake(aircraftClass, wakeCategory);
+  return {
+    uri,
+    scale: scaleForClassAndWake(aircraftClass, wakeCategory),
+    minimumPixelSize: 32,
+    runAnimations,
+  };
+}
+
+/** @deprecated Use getAircraftModelConfig(aircraftCategory). OpenSky numeric codes only. */
+export function getAircraftModelConfigFromCode(
   categoryCode: number | null,
 ): AircraftModelConfig {
-  return {
-    uri: uriForCategory(categoryCode),
-    scale: scaleForCategory(categoryCode),
-    minimumPixelSize: 32,
-  };
+  if (categoryCode === 10) return getAircraftModelConfig("B", null);
+  if (categoryCode === 8) return getAircraftModelConfig("H", null);
+  if (categoryCode === 2) return getAircraftModelConfig("L", "L");
+  if (categoryCode === 3 || categoryCode === 7) return getAircraftModelConfig("L", "M");
+  if (categoryCode === 4 || categoryCode === 5) return getAircraftModelConfig("L", "H");
+  if (categoryCode === 6) return getAircraftModelConfig("L", "H");
+  return getAircraftModelConfig(null, null);
 }

@@ -19,6 +19,8 @@ export type UseAirportGlobalLayerParams = {
   catalogReady: boolean;
   sceneTerrainReady: boolean;
   activeAirportId: string;
+  trafficViewMode: "airport" | "aircraft";
+  viewModeToken: number;
 };
 
 function createEmptyLayerRefs(): AirportLayerRefs {
@@ -31,11 +33,24 @@ function createEmptyLayerRefs(): AirportLayerRefs {
   };
 }
 
+function teardownLayer(viewer: Viewer, layer: AirportLayerRefs): void {
+  layer.sampler?.dispose();
+  layer.sampler = null;
+  if (layer.points && !layer.points.isDestroyed()) {
+    viewer.scene.primitives.remove(layer.points);
+    layer.points = null;
+  }
+  layer.primitiveById.clear();
+  layer.smallAirportIds.clear();
+}
+
 export function useAirportGlobalLayer({
   viewer,
   catalogReady,
   sceneTerrainReady,
   activeAirportId,
+  trafficViewMode,
+  viewModeToken,
 }: UseAirportGlobalLayerParams): AirportLayerRefs {
   const layerRef = useRef(createEmptyLayerRefs());
 
@@ -72,6 +87,12 @@ export function useAirportGlobalLayer({
     }
 
     const layer = layerRef.current;
+
+    if (trafficViewMode !== "airport") {
+      teardownLayer(viewer, layer);
+      return;
+    }
+
     const records = getAirportRecordsForMap();
     const collection = new BillboardCollection();
     viewer.scene.primitives.add(collection);
@@ -112,16 +133,32 @@ export function useAirportGlobalLayer({
     }
 
     return () => {
-      sampler.dispose();
-      layer.sampler = null;
-      if (layer.points && !layer.points.isDestroyed()) {
-        viewer.scene.primitives.remove(layer.points);
-        layer.points = null;
-      }
-      layer.primitiveById.clear();
-      layer.smallAirportIds.clear();
+      teardownLayer(viewer, layer);
     };
-  }, [viewer, catalogReady, sceneTerrainReady, activeAirportId, layerApi]);
+  }, [
+    viewer,
+    catalogReady,
+    sceneTerrainReady,
+    activeAirportId,
+    trafficViewMode,
+    viewModeToken,
+    layerApi,
+  ]);
+
+  const aircraftCount = useAircraftStore((s) => Object.keys(s.aircraft).length);
+
+  useEffect(() => {
+    if (
+      !viewer ||
+      trafficViewMode !== "airport" ||
+      !layerRef.current.points
+    ) {
+      return;
+    }
+
+    const activeId = useAircraftStore.getState().activeAirportId;
+    layerApi.applyStyleForId(activeId, activeId);
+  }, [aircraftCount, activeAirportId, trafficViewMode, viewer, layerApi]);
 
   return layerApi;
 }

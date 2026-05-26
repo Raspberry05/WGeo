@@ -1,0 +1,249 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "Aeroscope"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0,
+        1
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "fuselage",
+      "mesh": 0
+    },
+    {
+      "name": "rotors",
+      "translation": [
+        0,
+        0.1,
+        0
+      ],
+      "children": [
+        2,
+        3
+      ]
+    },
+    {
+      "name": "blade_x",
+      "mesh": 1
+    },
+    {
+      "name": "blade_z",
+      "mesh": 2
+    }
+  ],
+  "meshes": [
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0
+          },
+          "indices": 1,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 2
+          },
+          "indices": 3,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 4
+          },
+          "indices": 5,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 8,
+      "type": "VEC3",
+      "max": [
+        0.07,
+        0.07,
+        0.35
+      ],
+      "min": [
+        -0.07,
+        -0.07,
+        -0.35
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5123,
+      "count": 36,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 8,
+      "type": "VEC3",
+      "max": [
+        1.05,
+        0.025,
+        0.025
+      ],
+      "min": [
+        -1.05,
+        -0.025,
+        -0.025
+      ]
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 36,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 8,
+      "type": "VEC3",
+      "max": [
+        0.025,
+        0.025,
+        1.05
+      ],
+      "min": [
+        -0.025,
+        -0.025,
+        -1.05
+      ]
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5123,
+      "count": 36,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5126,
+      "count": 2,
+      "type": "SCALAR",
+      "max": [
+        1.2
+      ],
+      "min": [
+        0
+      ]
+    },
+    {
+      "bufferView": 7,
+      "componentType": 5126,
+      "count": 2,
+      "type": "VEC4",
+      "max": [
+        0,
+        1,
+        0,
+        1
+      ],
+      "min": [
+        0,
+        0,
+        0,
+        -1
+      ]
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 96,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 96,
+      "byteLength": 72,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 168,
+      "byteLength": 96,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 264,
+      "byteLength": 72,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 336,
+      "byteLength": 96,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 432,
+      "byteLength": 72,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 504,
+      "byteLength": 8
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 512,
+      "byteLength": 32
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 544,
+      "uri": "helicopter-placeholder.bin"
+    }
+  ],
+  "animations": [
+    {
+      "name": "rotor_spin",
+      "channels": [
+        {
+          "sampler": 0,
+          "target": {
+            "node": 1,
+            "path": "rotation"
+          }
+        }
+      ],
+      "samplers": [
+        {
+          "interpolation": "LINEAR",
+          "input": 6,
+          "output": 7
+        }
+      ]
+    }
+  ]
+}
