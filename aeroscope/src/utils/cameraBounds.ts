@@ -1,4 +1,4 @@
-import type { Viewer } from "cesium";
+import { Math as CesiumMath, type Viewer } from "cesium";
 import {
   VIEWPORT_BOUNDS_MAX_SPAN_DEG,
   VIEWPORT_SEARCH_PADDING_RATIO,
@@ -53,10 +53,11 @@ export function getCameraRect(viewer: Viewer): CameraRect | null {
   const rect = viewer.camera.computeViewRectangle();
   if (!rect) return null;
 
-  const west = rect.west;
-  const south = rect.south;
-  const east = rect.east;
-  const north = rect.north;
+  // Cesium returns radians; our APIs and filters operate in degrees.
+  const west = CesiumMath.toDegrees(rect.west);
+  const south = CesiumMath.toDegrees(rect.south);
+  const east = CesiumMath.toDegrees(rect.east);
+  const north = CesiumMath.toDegrees(rect.north);
 
   if (
     !Number.isFinite(west) ||
