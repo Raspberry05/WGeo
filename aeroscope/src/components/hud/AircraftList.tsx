@@ -27,7 +27,7 @@ export function AircraftList() {
   const list = Object.values(aircraft)
     .filter((ac) =>
       passesCategoryFilter(
-        ac.categoryCode === null ? -1 : ac.categoryCode,
+        ac.aircraftCategory,
         categoryFilter,
       ),
     )

@@ -76,6 +76,7 @@ function dtoToAircraftState(
     status,
     aircraftType: dto.aircraftType,
     categoryCode: dto.categoryCode,
+    aircraftCategory: dto.aircraftCategory,
     originCountry: dto.originCountry,
     operatorName: dto.operatorName,
     aircraftModel: dto.aircraftModel,

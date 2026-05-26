@@ -136,13 +136,11 @@ function createAircraftEntity(viewer: Viewer, ac: AircraftState): Entity {
 export function AircraftEntities() {
   const viewer = useCesiumStore((s) => s.viewer);
   const entityMapRef = useRef<Map<string, Entity>>(new Map());
-  const categoryMapRef = useRef<Map<string, number | null>>(new Map());
 
   useEffect(() => {
     if (!isViewerLive(viewer)) return;
 
     const map = entityMapRef.current;
-    const categoryMap = categoryMapRef.current;
 
     const syncAll = () => {
       if (!isViewerLive(viewer)) return;
@@ -157,31 +155,23 @@ export function AircraftEntities() {
         if (!ids.has(id)) {
           viewer.entities.remove(entity);
           map.delete(id);
-          categoryMap.delete(id);
         }
       }
 
       for (const ac of Object.values(aircraft)) {
-        const code = ac.categoryCode === null ? -1 : ac.categoryCode;
         const inView =
           !cameraRect ||
           isLatLonInCameraRect(ac.rawLat, ac.rawLon, cameraRect);
         const visible =
-          passesCategoryFilter(code, categoryFilter) && inView;
+          passesCategoryFilter(ac.aircraftCategory, categoryFilter) && inView;
 
         if (!map.has(ac.id)) {
           map.set(ac.id, createAircraftEntity(viewer, ac));
-          categoryMap.set(ac.id, ac.categoryCode);
         }
 
         const entity = map.get(ac.id)!;
         entity.show = visible;
         if (!visible) continue;
-
-        const prevCategory = categoryMap.get(ac.id);
-        if (prevCategory !== ac.categoryCode) {
-          categoryMap.set(ac.id, ac.categoryCode);
-        }
 
         const isSelected = selectedId === ac.id;
         applyModelStyle(entity, ac, isSelected);
@@ -207,7 +197,6 @@ export function AircraftEntities() {
         safeRemoveEntity(viewer, entity);
       }
       map.clear();
-      categoryMap.clear();
     };
   }, [viewer]);
 

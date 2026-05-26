@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { MdFilterList } from "react-icons/md";
-import { FILTERABLE_CATEGORIES } from "../../utils/aircraftCategory";
+import { AIRCRAFT_CATEGORY_OPTIONS } from "@/domain/aircraft/aircraftCategory";
+import type { AircraftCategory } from "@/domain/aircraft/aircraftCategory";
 import { useAircraftStore } from "../../store/useAircraftStore";
 import { HudPanel } from "./HudPanel";
 import { hudAccent, HUD_FONT_SM, hudText } from "./hudTheme";
@@ -10,7 +11,7 @@ export function CategoryFilter() {
   const setCategoryFilter = useAircraftStore((s) => s.setCategoryFilter);
 
   const toggle = useCallback(
-    (code: number) => {
+    (code: AircraftCategory) => {
       if (!filter) {
         setCategoryFilter([code]);
         return;
@@ -58,7 +59,7 @@ export function CategoryFilter() {
           gap: "6px",
         }}
       >
-        {FILTERABLE_CATEGORIES.map(({ code, label }) => {
+        {AIRCRAFT_CATEGORY_OPTIONS.map(({ code, label }) => {
           const on = !filter || filter.includes(code);
           return (
             <button

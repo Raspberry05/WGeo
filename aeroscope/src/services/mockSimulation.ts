@@ -1,4 +1,5 @@
 import type { AircraftState } from "../store/useAircraftStore";
+import { classifyAircraft } from "@/domain/aircraft/aircraftCategory";
 import { geoToScene, classifyStatus } from "../utils/geoMath";
 import { ATL_CENTER } from "../utils/geoMath";
 
@@ -82,6 +83,16 @@ export function tickMockSimulation(): AircraftState[] {
       status,
       aircraftType: "Uncategorized",
       categoryCode: null,
+      aircraftCategory: classifyAircraft({
+        aircraftModel: null,
+        operatorName: null,
+        callsign: f.callsign,
+        originAirport: null,
+        destinationAirport: null,
+        altitudeMeters: f.altitudeMeters,
+        velocityMs: f.velocity,
+        onGround: f.onGround,
+      }),
       originCountry: "United States",
       operatorName: null,
       aircraftModel: null,

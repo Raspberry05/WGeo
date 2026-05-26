@@ -173,6 +173,7 @@ export type AircraftDto = {
   onGround: boolean;
   aircraftType: string;
   categoryCode: number | null;
+  aircraftCategory: import("@/domain/aircraft/aircraftCategory").AircraftCategory;
   originCountry: string;
   operatorName: string | null;
   aircraftModel: string | null;

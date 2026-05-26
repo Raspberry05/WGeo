@@ -61,8 +61,7 @@ export function StatusBar({ isMobile }: StatusBarProps) {
   const total = Object.keys(aircraft).length;
   const filtered = Object.values(aircraft).filter((ac) => {
     if (!categoryFilter?.length) return true;
-    const code = ac.categoryCode ?? -1;
-    return categoryFilter.includes(code);
+    return categoryFilter.includes(ac.aircraftCategory);
   }).length;
 
   useEffect(() => {

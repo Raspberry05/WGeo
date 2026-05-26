@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { DEFAULT_AIRPORT_ID } from "../data/airports";
 import type { FlightDetailDto } from "../lib/aeroapi/types";
+import type { AircraftCategory } from "@/domain/aircraft/aircraftCategory";
 
 export type AircraftStatus = "taxiing" | "airborne" | "landing" | "parked";
 export type CameraFlyTarget = "airport" | "aircraft";
@@ -36,6 +37,7 @@ export interface AircraftState {
   positionTimeMs: number | null;
   aircraftType: string;
   categoryCode: number | null;
+  aircraftCategory: AircraftCategory;
   originCountry: string;
   operatorName: string | null;
   aircraftModel: string | null;
@@ -60,7 +62,7 @@ interface AircraftStore {
   cameraFlyToken: number;
   cameraFlyTarget: CameraFlyTarget;
   cameraFlyTargetId: string | null;
-  categoryFilter: number[] | null;
+  categoryFilter: AircraftCategory[] | null;
   airportCatalogReady: boolean;
   hoveredAirportId: string | null;
   hoverScreen: { x: number; y: number } | null;
@@ -87,7 +89,7 @@ interface AircraftStore {
   requestCameraFly: (target: CameraFlyTarget, id?: string) => void;
   setConnectionStatus: (s: "LIVE" | "SIMULATED" | "CONNECTING") => void;
   setCameraMode: (mode: CameraMode) => void;
-  setCategoryFilter: (codes: number[] | null) => void;
+  setCategoryFilter: (codes: AircraftCategory[] | null) => void;
   setAirportHover: (
     airportId: string | null,
     screen: { x: number; y: number } | null,
@@ -200,9 +202,9 @@ export const useAircraftStore = create<AircraftStore>((set) => ({
 }));
 
 export function passesCategoryFilter(
-  categoryCode: number,
-  filter: number[] | null,
+  aircraftCategory: AircraftCategory,
+  filter: AircraftCategory[] | null,
 ): boolean {
   if (!filter || filter.length === 0) return true;
-  return filter.includes(categoryCode);
+  return filter.includes(aircraftCategory);
 }
