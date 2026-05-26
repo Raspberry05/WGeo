@@ -12,6 +12,7 @@ dist
 dist-ssr
 .next
 public/cesium
+.cache/
 *.local
 .env
 .env.local
