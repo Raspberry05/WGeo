@@ -15,8 +15,10 @@ import {
   AIRPORT_POINT_FADE,
   AIRPORT_POINT_HEIGHT_M,
   AIRPORT_POINT_SCALE,
+  AIRPORT_SMALL_AIRPORT_AIRCRAFT_MODE_MAX_CAMERA_M,
   AIRPORT_SMALL_AIRPORT_MAX_CAMERA_M,
 } from "../config/airportPointVisuals";
+import { useAircraftStore } from "../store/useAircraftStore";
 import {
   getAirportRecord,
   getAirportRecordsForMap,
@@ -157,9 +159,15 @@ export function getRecordsInCameraView(viewer: Viewer): AirportRecord[] {
   );
 
   const index = getViewportIndex();
+  const trafficMode = useAircraftStore.getState().trafficViewMode;
+  const smallAirportMaxHeightM =
+    trafficMode === "aircraft"
+      ? AIRPORT_SMALL_AIRPORT_AIRCRAFT_MODE_MAX_CAMERA_M
+      : AIRPORT_SMALL_AIRPORT_MAX_CAMERA_M;
+
   if (
     index &&
-    viewer.camera.positionCartographic.height < AIRPORT_SMALL_AIRPORT_MAX_CAMERA_M
+    viewer.camera.positionCartographic.height < smallAirportMaxHeightM
   ) {
     inView.push(...index.query(west, south, east, north));
   }

@@ -1,13 +1,26 @@
 import { create } from "zustand";
 import { DEFAULT_AIRPORT_ID } from "../data/airports";
+import type { FlightDetailDto } from "../lib/aeroapi/types";
 
 export type AircraftStatus = "taxiing" | "airborne" | "landing" | "parked";
 export type CameraFlyTarget = "airport" | "aircraft";
 export type CameraMode = "free" | "follow";
+export type TrafficViewMode = "airport" | "aircraft";
+
+export type TrackPoint = {
+  lat: number;
+  lon: number;
+  altMeters: number;
+  timestamp: string | null;
+};
 
 export interface AircraftState {
+  /** FlightAware `fa_flight_id` — primary key for API calls. */
   id: string;
+  faFlightId: string;
+  registration: string | null;
   callsign: string;
+  /** Display id (registration or ident); legacy field name from OpenSky era. */
   icao24: string;
   position: [number, number, number];
   rawLat: number;
@@ -28,6 +41,9 @@ export interface AircraftState {
   aircraftModel: string | null;
   originAirport: string | null;
   destinationAirport: string | null;
+  flightDetail: FlightDetailDto | null;
+  /** Poll breadcrumb trail (lat/lon/alt). */
+  breadcrumb: TrackPoint[];
 }
 
 interface AircraftStore {
@@ -38,6 +54,11 @@ interface AircraftStore {
   connectionStatus: "LIVE" | "SIMULATED" | "CONNECTING";
   cameraMode: CameraMode;
   airportChangeToken: number;
+  viewModeToken: number;
+  trafficViewMode: TrafficViewMode;
+  viewportBoundsClamped: boolean;
+  sceneRefLat: number | null;
+  sceneRefLon: number | null;
   cameraFlyToken: number;
   cameraFlyTarget: CameraFlyTarget;
   cameraFlyTargetId: string | null;
@@ -45,6 +66,9 @@ interface AircraftStore {
   airportCatalogReady: boolean;
   hoveredAirportId: string | null;
   hoverScreen: { x: number; y: number } | null;
+  trackByFlightId: Record<string, TrackPoint[]>;
+  trackLoadingId: string | null;
+  showTrail: boolean;
 
   setAircraft: (aircraft: Record<string, AircraftState>) => void;
   setAirportCatalogReady: (ready: boolean) => void;
@@ -52,6 +76,16 @@ interface AircraftStore {
   enrichAircraft: (id: string, patch: Partial<AircraftState>) => void;
   selectAircraft: (id: string | null) => void;
   setActiveAirport: (id: string) => void;
+  setTrafficViewMode: (mode: TrafficViewMode) => void;
+  setViewportMeta: (meta: {
+    clamped: boolean;
+    sceneRefLat: number;
+    sceneRefLon: number;
+  }) => void;
+  setTrackForFlight: (flightId: string, positions: TrackPoint[]) => void;
+  clearTrack: (flightId?: string) => void;
+  setTrackLoading: (flightId: string | null) => void;
+  setShowTrail: (show: boolean) => void;
   requestCameraFly: (target: CameraFlyTarget, id?: string) => void;
   setConnectionStatus: (s: "LIVE" | "SIMULATED" | "CONNECTING") => void;
   setCameraMode: (mode: CameraMode) => void;
@@ -70,6 +104,11 @@ export const useAircraftStore = create<AircraftStore>((set) => ({
   connectionStatus: "CONNECTING",
   cameraMode: "free",
   airportChangeToken: 0,
+  viewModeToken: 0,
+  trafficViewMode: "airport",
+  viewportBoundsClamped: false,
+  sceneRefLat: null,
+  sceneRefLon: null,
   cameraFlyToken: 0,
   cameraFlyTarget: "airport",
   cameraFlyTargetId: DEFAULT_AIRPORT_ID,
@@ -77,6 +116,9 @@ export const useAircraftStore = create<AircraftStore>((set) => ({
   airportCatalogReady: false,
   hoveredAirportId: null,
   hoverScreen: null,
+  trackByFlightId: {},
+  trackLoadingId: null,
+  showTrail: true,
 
   setAircraft: (aircraft) => set({ aircraft }),
   setAirportCatalogReady: (airportCatalogReady) => set({ airportCatalogReady }),
@@ -96,10 +138,11 @@ export const useAircraftStore = create<AircraftStore>((set) => ({
       };
     }),
   selectAircraft: (id) =>
-    set({
+    set((state) => ({
       selectedId: id,
       cameraMode: id ? "follow" : "free",
-    }),
+      trackLoadingId: id && id !== state.selectedId ? id : state.trackLoadingId,
+    })),
   setActiveAirport: (id) =>
     set((state) => {
       if (id === state.activeAirportId && state.activeAirportPickEnabled) {
@@ -114,6 +157,37 @@ export const useAircraftStore = create<AircraftStore>((set) => ({
         airportChangeToken: state.airportChangeToken + 1,
       };
     }),
+  setTrafficViewMode: (mode) =>
+    set((state) => {
+      if (mode === state.trafficViewMode) return state;
+      return {
+        trafficViewMode: mode,
+        aircraft: {},
+        selectedId: null,
+        cameraMode: "free",
+        viewModeToken: state.viewModeToken + 1,
+        viewportBoundsClamped: false,
+      };
+    }),
+  setViewportMeta: ({ clamped, sceneRefLat, sceneRefLon }) =>
+    set({ viewportBoundsClamped: clamped, sceneRefLat, sceneRefLon }),
+  setTrackForFlight: (flightId, positions) =>
+    set((state) => ({
+      trackByFlightId: { ...state.trackByFlightId, [flightId]: positions },
+      trackLoadingId:
+        state.trackLoadingId === flightId ? null : state.trackLoadingId,
+    })),
+  clearTrack: (flightId) =>
+    set((state) => {
+      if (!flightId) {
+        return { trackByFlightId: {}, trackLoadingId: null };
+      }
+      const next = { ...state.trackByFlightId };
+      delete next[flightId];
+      return { trackByFlightId: next };
+    }),
+  setTrackLoading: (trackLoadingId) => set({ trackLoadingId }),
+  setShowTrail: (showTrail) => set({ showTrail }),
   requestCameraFly: (target, id) =>
     set((state) => ({
       cameraFlyTarget: target,

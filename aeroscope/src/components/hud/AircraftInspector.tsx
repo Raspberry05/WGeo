@@ -15,6 +15,7 @@ import {
 } from "../../utils/flightUnits";
 import { formatRouteSummary } from "../../utils/routeDisplay";
 import { AlternatingWeight } from "./AlternatingWeight";
+import { InspectorScheduleSection } from "./InspectorScheduleSection";
 import { InspectorField } from "./InspectorField";
 import {
   hexWithAlpha,
@@ -36,6 +37,9 @@ export function AircraftInspector({ isMobile }: AircraftInspectorProps) {
   const activeAirportId = useAircraftStore((s) => s.activeAirportId);
   const setCameraMode = useAircraftStore((s) => s.setCameraMode);
   const cameraMode = useAircraftStore((s) => s.cameraMode);
+  const trackLoadingId = useAircraftStore((s) => s.trackLoadingId);
+  const showTrail = useAircraftStore((s) => s.showTrail);
+  const setShowTrail = useAircraftStore((s) => s.setShowTrail);
 
   const ac = selectedId ? aircraft[selectedId] : null;
   if (!ac) return null;
@@ -98,7 +102,7 @@ export function AircraftInspector({ isMobile }: AircraftInspectorProps) {
               {ac.callsign}
             </div>
             <div style={{ color: hudMuted, fontSize: HUD_FONT_SM }}>
-              {ac.icao24.toUpperCase()}
+              {(ac.registration ?? ac.icao24).toUpperCase()}
             </div>
           </div>
         </div>
@@ -142,6 +146,31 @@ export function AircraftInspector({ isMobile }: AircraftInspectorProps) {
         value={<AlternatingWeight massKg={massKg} />}
       />
       <InspectorField label="LAST FIX" value={formatUtcDateTime(ac.lastUpdated)} />
+
+      <InspectorScheduleSection
+        detail={ac.flightDetail}
+        trackLoading={trackLoadingId === ac.id}
+      />
+
+      <button
+        type="button"
+        onClick={() => setShowTrail(!showTrail)}
+        style={{
+          marginTop: "12px",
+          width: "100%",
+          minHeight: isMobile ? HUD_TOUCH_MIN : undefined,
+          padding: "8px",
+          background: showTrail ? hexWithAlpha(color, "15") : "transparent",
+          border: `1px solid ${hexWithAlpha(color, "44")}`,
+          color,
+          fontFamily: "monospace",
+          fontSize: HUD_FONT_SM,
+          cursor: "pointer",
+          borderRadius: "4px",
+        }}
+      >
+        {showTrail ? "TRAIL ON" : "TRAIL OFF"}
+      </button>
 
       <button
         type="button"

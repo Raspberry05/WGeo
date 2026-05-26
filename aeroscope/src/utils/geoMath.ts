@@ -158,3 +158,13 @@ export function geoToSceneForAirport(
   const airport = getAirport(airportId);
   return geoToScene(lat, lon, altitude, airport.lat, airport.lon);
 }
+
+export function geoToSceneForReference(
+  lat: number,
+  lon: number,
+  altitude: number,
+  refLat: number,
+  refLon: number,
+): [number, number, number] {
+  return geoToScene(lat, lon, altitude, refLat, refLon);
+}

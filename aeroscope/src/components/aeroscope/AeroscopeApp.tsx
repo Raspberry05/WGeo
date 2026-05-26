@@ -5,9 +5,11 @@ import { AppShell } from "@/components/layout/AppShell";
 import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
 import { AircraftEntities } from "@/components/cesium/AircraftEntities";
 import { AirportEntities } from "@/components/cesium/AirportEntities";
+import { FlightTrailLayer } from "@/components/cesium/FlightTrailLayer";
 import { ScenePickHandler } from "@/components/cesium/ScenePickHandler";
 import { HUD } from "@/components/hud/HUD";
 import { useAircraftSystemLifecycle } from "@/hooks/useAircraftSystemLifecycle";
+import { useViewportFlightPoll } from "@/hooks/useViewportFlightPoll";
 import { useAirportCatalogBootstrap } from "@/hooks/useAirportCatalogBootstrap";
 import { useCesiumStore } from "@/store/useCesiumStore";
 
@@ -21,6 +23,7 @@ export default function AeroscopeApp() {
   const { catalogReady, catalogError } = useAirportCatalogBootstrap();
   const globeBootReady = useCesiumStore((s) => s.globeBootReady);
   useAircraftSystemLifecycle(catalogReady);
+  useViewportFlightPoll();
 
   return (
     <AppShell>
@@ -34,6 +37,7 @@ export default function AeroscopeApp() {
         <>
           <AircraftEntities />
           <AirportEntities />
+          <FlightTrailLayer />
           <ScenePickHandler />
           <HUD />
         </>

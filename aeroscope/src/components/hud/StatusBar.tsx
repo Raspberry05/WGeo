@@ -1,6 +1,11 @@
 import { useEffect } from "react";
 import { getAirport } from "../../data/airports";
-import { enrichSelectedAircraft } from "../../services/aircraftEnrichment";
+import {
+  enrichSelectedAircraft,
+  loadTrackForSelected,
+} from "../../services/aircraftEnrichment";
+import { formatScheduleTime } from "../../utils/flightScheduleDisplay";
+import { TrafficViewToggle } from "./TrafficViewToggle";
 import { useAircraftStore } from "../../store/useAircraftStore";
 import { useHudStore } from "../../store/useHudStore";
 import {
@@ -52,7 +57,9 @@ export function StatusBar({ isMobile }: StatusBarProps) {
   }).length;
 
   useEffect(() => {
-    if (selectedId) void enrichSelectedAircraft(selectedId);
+    if (!selectedId) return;
+    void enrichSelectedAircraft(selectedId);
+    void loadTrackForSelected(selectedId);
   }, [selectedId]);
 
   const connectionColor =
@@ -158,6 +165,8 @@ export function StatusBar({ isMobile }: StatusBarProps) {
         </span>
       )}
 
+      <TrafficViewToggle isMobile={isMobile} />
+
       {!isMobile && (
         <>
           <WeatherPanel />
@@ -214,6 +223,28 @@ export function StatusBar({ isMobile }: StatusBarProps) {
             </span>
             {regIso && (
               <FlagIcon iso2={regIso} size={18} title={selected.originCountry} />
+            )}
+            {selected.flightDetail && (
+              <>
+                <span style={{ color: "#5a7a6a" }}>|</span>
+                <span style={{ color: hudMuted }}>
+                  {selected.flightDetail.gateOrigin
+                    ? `G${selected.flightDetail.gateOrigin}`
+                    : "—"}
+                  {" · "}
+                  ETD{" "}
+                  {formatScheduleTime(
+                    selected.flightDetail.estimatedOut ??
+                      selected.flightDetail.scheduledOut,
+                  )}
+                  {" · "}
+                  ETA{" "}
+                  {formatScheduleTime(
+                    selected.flightDetail.estimatedIn ??
+                      selected.flightDetail.scheduledIn,
+                  )}
+                </span>
+              </>
             )}
           </span>
         </>

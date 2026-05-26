@@ -1,4 +1,4 @@
-export type OpenSkyBounds = {
+export type FlightBounds = {
   lamin: number;
   lomin: number;
   lamax: number;
@@ -7,7 +7,7 @@ export type OpenSkyBounds = {
 
 export function parseBounds(
   query: Record<string, string | string[] | undefined>,
-): OpenSkyBounds | null {
+): FlightBounds | null {
   const lamin = parseFloat(String(query.lamin ?? ""));
   const lomin = parseFloat(String(query.lomin ?? ""));
   const lamax = parseFloat(String(query.lamax ?? ""));
@@ -32,10 +32,11 @@ export function parseBounds(
   return { lamin, lomin, lamax, lomax };
 }
 
-export function boundsKey(bounds: OpenSkyBounds): string {
+export function boundsKey(bounds: FlightBounds): string {
   return `${bounds.lamin},${bounds.lomin},${bounds.lamax},${bounds.lomax}`;
 }
 
-export function boundsQuery(bounds: OpenSkyBounds): string {
-  return `?lamin=${bounds.lamin}&lomin=${bounds.lomin}&lamax=${bounds.lamax}&lomax=${bounds.lomax}`;
+/** AeroAPI /flights/search latlong query (MINLAT MINLON MAXLAT MAXLON). */
+export function boundsToSearchQuery(bounds: FlightBounds): string {
+  return `-latlong "${bounds.lamin} ${bounds.lomin} ${bounds.lamax} ${bounds.lomax}"`;
 }
