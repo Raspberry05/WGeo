@@ -8,6 +8,7 @@ import { AircraftList } from "./AircraftList";
 import { AirportHoverTooltip } from "./AirportHoverTooltip";
 import { AirportPicker } from "./AirportPicker";
 import { ClassFilter } from "./ClassFilter";
+import { ImagerySelector } from "./ImagerySelector";
 import { WakeFilter } from "./WakeFilter";
 import { StatusBar } from "./StatusBar";
 import { TrafficViewToggle } from "./TrafficViewToggle";
@@ -95,6 +96,7 @@ export function HUD() {
       <StatusBar isMobile={isMobile} />
       <HudSidebar isMobile={isMobile} drawerOpen={drawerOpen}>
         <AirportPicker isMobile={isMobile} />
+        <ImagerySelector />
         <ClassFilter />
         <WakeFilter />
         <AircraftList />
