@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { useAircraftStore } from "@/store/useAircraftStore";
 import { useCesiumStore } from "@/store/useCesiumStore";
 
@@ -21,13 +21,13 @@ const MESSAGES: Record<Exclude<BootPhase, null>, string> = {
 export function useBootPhase(catalogError: string | null): BootPhaseState {
   const globeBootReady = useCesiumStore((s) => s.globeBootReady);
   const catalogReady = useAircraftStore((s) => s.airportCatalogReady);
-  const [initialBootDone, setInitialBootDone] = useState(false);
-
-  useEffect(() => {
-    if (globeBootReady && catalogReady && !catalogError) {
-      setInitialBootDone(true);
-    }
-  }, [globeBootReady, catalogReady, catalogError]);
+  // We intentionally avoid latching state with an effect, because Vercel's build
+  // runs a React lint rule that flags synchronous setState inside effects.
+  // The boot overlay is only for initial globe + catalog readiness.
+  const initialBootDone = useMemo(
+    () => globeBootReady && catalogReady && !catalogError,
+    [globeBootReady, catalogReady, catalogError],
+  );
 
   if (catalogError) {
     return { phase: null, message: "" };
