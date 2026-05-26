@@ -56,10 +56,16 @@ Test `https://….trycloudflare.com/diagnose` → `ok: true`. Keep both terminal
 
 ---
 
-## Railway (only if `/diagnose` succeeds)
+## Railway
+
+Railway **often cannot reach OpenSky** (your `/diagnose` shows `ok: false` and ~45s timeouts to `opensky-network.org` even with DNS resolving). That is outbound blocking from the cloud provider, not a bug in this proxy. **Do not use Railway for production** unless `/diagnose` returns `"ok": true`.
+
+Build uses **`Dockerfile`** (not Nixpacks) to avoid `$NIXPACKS_PATH` / UndefinedVar warnings in Railway build logs.
+
+### Only deploy on Railway if `/diagnose` succeeds
 
 1. Root Directory: `aeroscope/opensky-proxy`
-2. **Region:** EU (Frankfurt / Amsterdam)
+2. **Region:** EU (Frankfurt / Amsterdam) — US regions are no better for OpenSky
 3. Env (recommended):
 
 | Variable | Default | Purpose |
@@ -71,7 +77,17 @@ Test `https://….trycloudflare.com/diagnose` → `ok: true`. Keep both terminal
 | `WARM_INTERVAL_MS` | `0` (off) | Set `5000` to prefetch in background |
 | `WARM_BOUNDS_QUERY` | — | e.g. `lamin=48&lomin=2&lamax=50&lomax=4` (no `?`) |
 
-4. `npm start`
+4. Redeploy; confirm `GET https://<service>/diagnose` → `"ok": true` before pointing Vercel at it.
+
+### When Railway diagnose is `ok: false` (your case)
+
+Use one of these instead:
+
+| Option | Always-on? | Notes |
+|--------|------------|--------|
+| **EU VPS** (Oracle free, Hetzner ~€5) | Yes | `git clone` → `cd opensky-proxy` → `docker build` / `npm start` → set Vercel URLs |
+| **Cloudflare Worker + Tunnel** | Tunnel needs a running backend | See `cloudflare/CLOUDFLARE.md` — backend can be home PC or VPS |
+| **PC + trycloudflare** | No (PC must run) | Quick demo only |
 
 ### `/states` cache headers
 

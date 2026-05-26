@@ -285,10 +285,11 @@ const server = http.createServer(async (req, res) => {
           opensky: probe,
           nextSteps: unreachable
             ? [
-                "Railway cannot reach OpenSky (outbound block or wrong region).",
-                "Deploy cloudflare/worker.js via Wrangler (recommended) — see opensky-proxy/README.md.",
-                "Or try Fly.io / Render in EU, or a small VPS.",
-                "Set Vercel OPENSKY_STATES_URL and OPENSKY_TOKEN_URL to the working proxy base + /states and /token.",
+                "This host cannot reach OpenSky (datacenter egress blocked or filtered). Stale-while-revalidate and longer timeouts will not fix diagnose ok:false.",
+                "Run opensky-proxy on a network that can reach OpenSky (home PC + Cloudflare Tunnel, or EU VPS such as Oracle Always Free / Hetzner).",
+                "Verify from that host: curl -sS -m 10 'https://opensky-network.org/api/states/all?lamin=0&lomin=0&lamax=1&lomax=1' | head -c 200",
+                "Then set Vercel OPENSKY_STATES_URL and OPENSKY_TOKEN_URL to https://<working-host>/states and /token.",
+                "Railway often fails this probe; see opensky-proxy/README.md and cloudflare/CLOUDFLARE.md.",
               ]
             : [],
         }),

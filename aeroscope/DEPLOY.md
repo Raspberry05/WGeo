@@ -57,7 +57,7 @@ CORS does **not** fix server-side `CONNECT_TIMEOUT` to OpenSky.
 
 When using **Railway** (or any external proxy) with `OPENSKY_STATES_URL` / `OPENSKY_TOKEN_URL`:
 
-1. **`GET <proxy>/diagnose`** must return `"ok": true`. If OpenSky times out from that host, no timeout tuning on Vercel will show aircraft.
+1. **`GET <proxy>/diagnose`** must return `"ok": true`. If you see `"ok": false` with `Upstream timeout after 45000ms`, the proxy host **cannot reach OpenSky** (common on **Railway**). Use an EU VPS or Cloudflare Tunnel from a network where OpenSky works — not longer timeouts.
 2. **HTTP 499** in Railway logs means **Vercel closed the connection** before the proxy finished (not the browser abandoning a large JSON body).
 3. **Vercel Hobby** caps API routes at **~10s** (`vercel.json` and route `maxDuration` are set to `10`). The proxy uses **stale-while-revalidate** so Vercel usually gets a response in under 2s; slow OpenSky fetches run in the background on Railway.
 4. **504** from the proxy means OpenSky did not respond within `UPSTREAM_TIMEOUT_MS` on the proxy (default **45s** for background refresh).
