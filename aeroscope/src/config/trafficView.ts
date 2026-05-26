@@ -12,3 +12,6 @@ export const VIEWPORT_POLL_VIEWER_RETRY_MS = 1500;
 
 /** Debounce camera moveEnd before refetching flights (ms). */
 export const VIEWPORT_POLL_DEBOUNCE_MS = 500;
+
+/** Enables camera-viewport traffic mode in the HUD. */
+export const AIRCRAFT_VIEWPORT_ENABLED = true;
