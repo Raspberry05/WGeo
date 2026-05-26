@@ -1,6 +1,13 @@
 name = "aeroscope-opensky"
 main = "worker.js"
 compatibility_date = "2024-01-01"
+# Avoid 522 when fetching origins behind Cloudflare (e.g. opensky-network.org).
+compatibility_flags = ["global_fetch_strictly_public"]
+
+# Set via: wrangler secret put BACKEND_ORIGIN
+# Value: https://YOUR.trycloudflare.com (from cloudflared tunnel to localhost:8080)
+# [vars]
+# BACKEND_ORIGIN = ""
 
 [observability]
 enabled = true

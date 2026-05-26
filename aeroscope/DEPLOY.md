@@ -32,7 +32,7 @@ Use `.env.local` locally (see `.env.example`).
    - `authError: "fetch failed"` → Vercel cannot reach the OpenSky auth host; add env `NODE_OPTIONS=--dns-result-order=ipv4first` (Production + Preview) and redeploy. The app will fall back to anonymous OpenSky when token fetch fails.
 6. Optional Vercel env: `NODE_OPTIONS` = `--dns-result-order=ipv4first`.
 7. **EU region (required):** OpenSky is in Europe; Vercel’s default is `iad1` (US). This repo sets **`vercel.json`** → `"regions": ["fra1"]` and `"functions": { "src/app/api/**/*.ts": { "regions": ["fra1"] } }`. **Redeploy** after merging. In `/api/health`, expect `vercelRegion: "fra1"` and `regionMismatch: false`. The Next.js `export const preferredRegion` on routes does **not** move Node.js functions — use `vercel.json` or **Vercel → Project → Settings → Functions → Function Region → Frankfurt**.
-8. **If Vercel cannot reach OpenSky:** use a forward proxy. Open `GET <proxy>/diagnose` — if `opensky.states.ok` is **false** (20s timeout), Railway cannot reach OpenSky either; deploy **`opensky-proxy/cloudflare`** with Wrangler (see **`opensky-proxy/README.md`**). If diagnose succeeds, set `OPENSKY_STATES_URL` / `OPENSKY_TOKEN_URL` to that host’s `/states` and `/token`, redeploy Vercel, and confirm `/api/health` shows `authOk: true`.
+8. **If Vercel cannot reach OpenSky:** use **Cloudflare Worker + Tunnel** (see **`opensky-proxy/cloudflare/CLOUDFLARE.md`**). Vercel → `*.workers.dev` → tunnel → your PC `opensky-proxy` → OpenSky. Set `BACKEND_ORIGIN` on the Worker to your `trycloudflare.com` URL. Local `npm run dev` works because OpenSky is called from your home network, not from Vercel’s datacenter.
 
 ## Build
 
@@ -52,6 +52,24 @@ The Aeroscope UI calls **`/api/opensky` on the same Vercel host** (no cross-orig
 If **Vercel Authentication / Deployment Protection** is on, keep **`/api` in the OPTIONS Allowlist** (default for new projects) so preflight succeeds.
 
 CORS does **not** fix server-side `CONNECT_TIMEOUT` to OpenSky.
+
+## OpenSky proxy, HTTP 499, and Vercel Hobby
+
+When using **Railway** (or any external proxy) with `OPENSKY_STATES_URL` / `OPENSKY_TOKEN_URL`:
+
+1. **`GET <proxy>/diagnose`** must return `"ok": true`. If OpenSky times out from that host, no timeout tuning on Vercel will show aircraft.
+2. **HTTP 499** in Railway logs means **Vercel closed the connection** before the proxy finished (not the browser abandoning a large JSON body).
+3. **Vercel Hobby** caps API routes at **~10s** (`vercel.json` and route `maxDuration` are set to `10`). The proxy uses **stale-while-revalidate** so Vercel usually gets a response in under 2s; slow OpenSky fetches run in the background on Railway.
+4. **504** from the proxy means OpenSky did not respond within `UPSTREAM_TIMEOUT_MS` on the proxy (default **45s** for background refresh).
+
+| Layer | Hobby default | Notes |
+|-------|----------------|-------|
+| Vercel `maxDuration` | 10s | Hard cap on Hobby |
+| `OPENSKY_STATES_TIMEOUT_MS` | 8000 | Env override on Pro |
+| `OPENSKY_PROXY_DEADLINE_MS` | 9000 | Must be < `maxDuration` |
+| Railway `UPSTREAM_TIMEOUT_MS` | 45000 | Background only with SWR |
+
+See **`opensky-proxy/README.md`** for Railway env vars (`WARM_INTERVAL_MS`, `WARM_BOUNDS_QUERY`, etc.).
 
 ## API routes
 

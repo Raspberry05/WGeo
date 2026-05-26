@@ -11,8 +11,11 @@ const STATES_UPSTREAM =
   "https://opensky-network.org/api/states/all";
 const TOKEN_UPSTREAM =
   "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token";
-const UPSTREAM_TIMEOUT_MS = Number(process.env.UPSTREAM_TIMEOUT_MS) || 20_000;
+const UPSTREAM_TIMEOUT_MS = Number(process.env.UPSTREAM_TIMEOUT_MS) || 45_000;
 const STATES_CACHE_TTL_MS = Number(process.env.STATES_CACHE_TTL_MS) || 6_000;
+const STALE_MAX_AGE_MS = Number(process.env.STALE_MAX_AGE_MS) || 120_000;
+const WARM_INTERVAL_MS = Number(process.env.WARM_INTERVAL_MS) || 0;
+const WARM_BOUNDS_QUERY = process.env.WARM_BOUNDS_QUERY || "";
 const PROBE_CACHE_MS = 30_000;
 
 /** @type {Map<string, { body: string; status: number; at: number }>} */
@@ -34,6 +37,19 @@ function readBody(req) {
     req.on("end", () => resolve(Buffer.concat(chunks)));
     req.on("error", reject);
   });
+}
+
+function normalizeSearch(query) {
+  if (!query) return "";
+  return query.startsWith("?") ? query : `?${query}`;
+}
+
+function isFresh(hit, now) {
+  return hit && now - hit.at < STATES_CACHE_TTL_MS;
+}
+
+function isStaleAcceptable(hit, now) {
+  return hit && now - hit.at < STALE_MAX_AGE_MS;
 }
 
 async function resolveOpenSkyIpv4() {
@@ -118,72 +134,93 @@ async function fetchStatesUpstream(search) {
   return result;
 }
 
-async function getStatesCached(search, res) {
+/** Start background refresh; does not block callers (avoids Vercel 499). */
+function startStatesRefresh(search) {
+  const key = search || "";
+  let flight = statesInflight.get(key);
+  if (flight) return flight;
+
+  flight = (async () => {
+    try {
+      const result = await fetchStatesUpstream(search);
+      statesCache.set(key, {
+        body: result.text,
+        status: result.status,
+        at: Date.now(),
+      });
+    } catch (err) {
+      console.error(
+        `[opensky-proxy] refresh failed key=${key || "(global)"}:`,
+        err instanceof Error ? err.message : String(err),
+      );
+    } finally {
+      statesInflight.delete(key);
+    }
+  })();
+  statesInflight.set(key, flight);
+  return flight;
+}
+
+function sendStatesBody(res, hit, cacheHeader) {
+  if (res.writableEnded || res.headersSent) return;
+  res.writeHead(200, {
+    "Content-Type": "application/json",
+    "X-Cache": cacheHeader,
+  });
+  res.end(hit.body);
+}
+
+function sendWarming(res, inflightAlready) {
+  if (res.writableEnded || res.headersSent) return;
+  res.writeHead(503, {
+    "Content-Type": "application/json",
+    "X-Cache": "WARMING",
+  });
+  res.end(
+    JSON.stringify({
+      warming: true,
+      error: inflightAlready
+        ? "Cache refresh in progress"
+        : "Cache cold; refresh started",
+      hint: "Retry in a few seconds. Set WARM_BOUNDS_QUERY on Railway for faster first load.",
+    }),
+  );
+}
+
+/**
+ * Stale-while-revalidate: respond in <1s when any cache exists; never block on OpenSky.
+ */
+function getStatesCached(search, res) {
   const key = search || "";
   const now = Date.now();
   const hit = statesCache.get(key);
-  if (hit && now - hit.at < STATES_CACHE_TTL_MS) {
-    res.writeHead(200, {
-      "Content-Type": "application/json",
-      "X-Cache": "HIT",
-    });
-    res.end(hit.body);
+
+  if (hit && isFresh(hit, now)) {
+    sendStatesBody(res, hit, "HIT");
     return;
   }
 
-  let flight = statesInflight.get(key);
-  if (!flight) {
-    flight = (async () => {
-      try {
-        const result = await fetchStatesUpstream(search);
-        statesCache.set(key, {
-          body: result.text,
-          status: result.status,
-          at: Date.now(),
-        });
-      } finally {
-        statesInflight.delete(key);
-      }
-    })();
-    statesInflight.set(key, flight);
-  }
-
-  try {
-    await flight;
-  } catch (err) {
-    if (!res.headersSent) {
-      const stale = statesCache.get(key);
-      if (stale) {
-        res.writeHead(200, {
-          "Content-Type": "application/json",
-          "X-Cache": "STALE",
-        });
-        res.end(stale.body);
-        return;
-      }
-      res.writeHead(504, { "Content-Type": "application/json" });
-      res.end(
-        JSON.stringify({
-          error: err instanceof Error ? err.message : String(err),
-          hint: "OpenSky unreachable from this host. Set Railway NODE_OPTIONS=--dns-result-order=ipv4first and EU region.",
-        }),
-      );
-    }
+  if (hit && isStaleAcceptable(hit, now)) {
+    startStatesRefresh(search);
+    sendStatesBody(res, hit, "STALE");
     return;
   }
 
-  const fresh = statesCache.get(key);
-  if (!fresh) {
-    res.writeHead(502, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ error: "Cache miss after fetch" }));
-    return;
-  }
+  const inflightAlready = statesInflight.has(key);
+  startStatesRefresh(search);
+  sendWarming(res, inflightAlready);
+}
 
-  res.writeHead(200, {
-    "Content-Type": "application/json",
-    "X-Cache": "MISS",
-  });
-  res.end(fresh.body);
+function warmCacheKeys() {
+  const keys = new Set();
+  const warmSearch = normalizeSearch(WARM_BOUNDS_QUERY);
+  if (warmSearch) keys.add(warmSearch);
+  for (const k of statesCache.keys()) {
+    keys.add(k.startsWith("?") ? k : normalizeSearch(k));
+  }
+  for (const search of keys) {
+    startStatesRefresh(search);
+  }
 }
 
 async function forwardToken(body, res) {
@@ -222,6 +259,10 @@ const server = http.createServer(async (req, res) => {
           cacheEntries: statesCache.size,
           inflight: statesInflight.size,
           lastProbeAt: lastProbe.at || null,
+          statesCacheTtlMs: STATES_CACHE_TTL_MS,
+          staleMaxAgeMs: STALE_MAX_AGE_MS,
+          upstreamTimeoutMs: UPSTREAM_TIMEOUT_MS,
+          warmIntervalMs: WARM_INTERVAL_MS || null,
         }),
       );
       return;
@@ -238,6 +279,7 @@ const server = http.createServer(async (req, res) => {
           ok: probe.states.ok,
           service: "opensky-proxy",
           upstreamTimeoutMs: UPSTREAM_TIMEOUT_MS,
+          staleWhileRevalidate: true,
           cacheEntries: statesCache.size,
           inflight: statesInflight.size,
           opensky: probe,
@@ -255,7 +297,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (url.pathname === "/states" && req.method === "GET") {
-      await getStatesCached(url.search, res);
+      getStatesCached(url.search, res);
       return;
     }
 
@@ -287,6 +329,14 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(
-    `[opensky-proxy] listening on ${PORT}, upstream timeout ${UPSTREAM_TIMEOUT_MS}ms`,
+    `[opensky-proxy] listening on ${PORT}, upstream ${UPSTREAM_TIMEOUT_MS}ms, cache TTL ${STATES_CACHE_TTL_MS}ms, stale max ${STALE_MAX_AGE_MS}ms`,
   );
+  if (WARM_INTERVAL_MS > 0) {
+    warmCacheKeys();
+    setInterval(warmCacheKeys, WARM_INTERVAL_MS);
+    console.log(
+      `[opensky-proxy] cache warmer every ${WARM_INTERVAL_MS}ms` +
+        (WARM_BOUNDS_QUERY ? ` (bounds: ${WARM_BOUNDS_QUERY})` : ""),
+    );
+  }
 });

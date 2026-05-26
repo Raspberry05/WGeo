@@ -3,7 +3,7 @@ import { fetchAircraftEnrichment, isValidIcao24 } from "@/lib/opensky/enrich";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 30;
+export const maxDuration = 10;
 
 type RouteContext = { params: Promise<{ icao24: string }> };
 
