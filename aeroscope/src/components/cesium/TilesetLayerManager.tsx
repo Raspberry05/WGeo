@@ -36,6 +36,12 @@ function disposeTileset(
   }
 }
 
+function getStoreViewer(): Viewer | null {
+  const v = useCesiumStore.getState().viewer;
+  if (!v || v.isDestroyed()) return null;
+  return v;
+}
+
 export function TilesetLayerManager() {
   const viewer = useCesiumStore((s) => s.viewer);
   const buildings3dId = useMapSettingsStore((s) => s.buildings3dId);
@@ -44,15 +50,20 @@ export function TilesetLayerManager() {
 
   // Warm OSM Buildings in the background while the globe is idle.
   useEffect(() => {
-    if (!viewer || viewer.isDestroyed()) return;
-    void prefetchOsmBuildings(viewer);
-    return () => invalidateTilesetPrefetch(viewer);
+    const v = getStoreViewer();
+    if (!v) return;
+    void prefetchOsmBuildings(v);
+    return () => {
+      const cleanupViewer = getStoreViewer();
+      if (cleanupViewer) invalidateTilesetPrefetch(cleanupViewer);
+    };
   }, [viewer]);
 
   useEffect(() => {
-    if (!viewer || viewer.isDestroyed()) return;
+    const v = getStoreViewer();
+    if (!v) return;
 
-    viewer.scene.globe.show = !imageryBlockedBy3d(buildings3dId);
+    v.scene.globe.show = !imageryBlockedBy3d(buildings3dId);
 
     const key = buildings3dId;
     if (key === activeKeyRef.current && tilesetRef.current) return;
@@ -60,7 +71,7 @@ export function TilesetLayerManager() {
     let cancelled = false;
 
     void (async () => {
-      disposeTileset(viewer, tilesetRef.current);
+      disposeTileset(v, tilesetRef.current);
       tilesetRef.current = null;
       activeKeyRef.current = "";
 
@@ -69,8 +80,10 @@ export function TilesetLayerManager() {
 
       if (buildings3dId === "osm") {
         if (!showPrefetchedOsmBuildings()) {
-          await prefetchOsmBuildings(viewer);
-          if (cancelled || viewer.isDestroyed()) return;
+          const prefetchViewer = getStoreViewer();
+          if (!prefetchViewer) return;
+          await prefetchOsmBuildings(prefetchViewer);
+          if (cancelled || !getStoreViewer()) return;
           showPrefetchedOsmBuildings();
         }
         tilesetRef.current = getPrefetchedOsmBuildings();
@@ -80,12 +93,13 @@ export function TilesetLayerManager() {
 
       try {
         const tileset = await Cesium3DTileset.fromIonAssetId(option.ionAssetId);
-        if (cancelled || viewer.isDestroyed()) {
-          disposeTileset(viewer, tileset);
+        const activeViewer = getStoreViewer();
+        if (cancelled || !activeViewer) {
+          disposeTileset(activeViewer, tileset);
           return;
         }
 
-        viewer.scene.primitives.add(tileset);
+        activeViewer.scene.primitives.add(tileset);
         tilesetRef.current = tileset;
         activeKeyRef.current = key;
       } catch (error) {
@@ -104,13 +118,14 @@ export function TilesetLayerManager() {
 
   useEffect(() => {
     return () => {
-      disposeTileset(viewer, tilesetRef.current);
+      const v = getStoreViewer();
+      disposeTileset(v, tilesetRef.current);
       tilesetRef.current = null;
       activeKeyRef.current = "";
-      if (viewer && !viewer.isDestroyed()) {
-        viewer.scene.globe.show = true;
+      if (v) {
+        v.scene.globe.show = true;
       }
-      invalidateTilesetPrefetch(viewer);
+      invalidateTilesetPrefetch(v);
     };
   }, [viewer]);
 
