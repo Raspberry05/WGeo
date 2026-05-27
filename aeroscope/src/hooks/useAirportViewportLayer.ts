@@ -1,5 +1,9 @@
 import { useCallback, useEffect } from "react";
 import type { Viewer } from "cesium";
+import {
+  enabledViewportTypes,
+  type AirportType,
+} from "@/config/airportFilters";
 import { getViewportIndex } from "../data/airportCatalog";
 import { useFullCatalogLoaded } from "./useFullCatalogLoaded";
 import type { AirportLayerRefs } from "../types/airportLayer";
@@ -13,6 +17,8 @@ export type UseAirportViewportLayerParams = {
   trafficViewMode: "airport" | "aircraft";
   viewModeToken: number;
   layer: AirportLayerRefs;
+  airportTypeFilter: AirportType[] | null;
+  airportFilterToken: number;
 };
 
 function clearSmallAirportBillboards(layer: AirportLayerRefs): void {
@@ -36,6 +42,8 @@ export function useAirportViewportLayer({
   trafficViewMode,
   viewModeToken,
   layer,
+  airportTypeFilter,
+  airportFilterToken,
 }: UseAirportViewportLayerParams): void {
   const fullCatalogLoaded = useFullCatalogLoaded();
 
@@ -47,6 +55,10 @@ export function useAirportViewportLayer({
       }
 
       if (!fullCatalogLoaded || !layer.points) return;
+      if (enabledViewportTypes(airportTypeFilter).length === 0) {
+        clearSmallAirportBillboards(layer);
+        return;
+      }
 
       const collection = layer.points;
       const heights = layer.sampler?.cache ?? new Map();
@@ -62,7 +74,7 @@ export function useAirportViewportLayer({
       const index = getViewportIndex();
       if (!index) return;
 
-      const visible = index.query(west, south, east, north);
+      const visible = index.query(west, south, east, north, airportTypeFilter);
       const nextIds = new Set(visible.map((r) => r.id));
 
       for (const id of layer.smallAirportIds) {
@@ -87,7 +99,7 @@ export function useAirportViewportLayer({
         layer.smallAirportIds.add(record.id);
       }
     },
-    [fullCatalogLoaded, layer, activeAirportId, trafficViewMode],
+    [fullCatalogLoaded, layer, activeAirportId, trafficViewMode, airportTypeFilter],
   );
 
   useEffect(() => {
@@ -107,23 +119,26 @@ export function useAirportViewportLayer({
     viewModeToken,
     syncSmallAirportsInView,
     layer,
+    airportFilterToken,
   ]);
 
   useEffect(() => {
     if (!viewer || !catalogReady || trafficViewMode !== "airport") return;
+    const currentViewer = viewer;
 
     const onMoveEnd = (): void => {
-      syncSmallAirportsInView(viewer);
+      syncSmallAirportsInView(currentViewer);
       if (sceneTerrainReady) {
         layer.sampler?.sampleViewport();
       }
     };
 
-    viewer.camera.moveEnd.addEventListener(onMoveEnd);
-    syncSmallAirportsInView(viewer);
+    currentViewer.camera.moveEnd.addEventListener(onMoveEnd);
+    syncSmallAirportsInView(currentViewer);
 
     return () => {
-      viewer.camera.moveEnd.removeEventListener(onMoveEnd);
+      if (!currentViewer || !currentViewer.scene) return;
+      currentViewer.camera.moveEnd.removeEventListener(onMoveEnd);
     };
   }, [
     viewer,
@@ -133,5 +148,7 @@ export function useAirportViewportLayer({
     viewModeToken,
     syncSmallAirportsInView,
     layer,
+    airportTypeFilter,
+    airportFilterToken,
   ]);
 }

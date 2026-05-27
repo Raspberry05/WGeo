@@ -5,6 +5,7 @@ import {
   type Viewer,
 } from "cesium";
 import { CESIUM_ION_TOKEN } from "../config/cesium";
+import { ION_IMAGERY_ASSET } from "../config/imageryOptions";
 import { terrainProviderSupportsSampling } from "./airportTerrainHeight";
 import { isViewerUsable, waitForViewerReady } from "./cesiumViewerReady";
 
@@ -78,7 +79,9 @@ export async function initCesiumScene(
   let terrainReady = false;
 
   try {
-    const imagery = await IonImageryProvider.fromAssetId(3830182);
+    const imagery = await IonImageryProvider.fromAssetId(
+      ION_IMAGERY_ASSET.googleSatellite,
+    );
     if (shouldAbort(viewer, isCancelled)) {
       return earlyExitHandle(viewer);
     }

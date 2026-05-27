@@ -1,3 +1,8 @@
+import {
+  enabledViewportTypes,
+  passesAirportTypeFilter,
+  type AirportType,
+} from "../config/airportFilters";
 import { AIRPORT_GRID_CELL_DEG } from "../config/airportPointVisuals";
 import type { AirportRecord } from "../data/airportCatalog";
 
@@ -8,17 +13,29 @@ function cellKey(lat: number, lon: number): string {
 }
 
 export type AirportViewportIndex = {
-  query: (west: number, south: number, east: number, north: number) => AirportRecord[];
+  query: (
+    west: number,
+    south: number,
+    east: number,
+    north: number,
+    typeFilter?: AirportType[] | null,
+  ) => AirportRecord[];
 };
 
-/** Spatial grid of small_airport records for viewport culling. */
+const VIEWPORT_INDEX_TYPES = new Set([
+  "small_airport",
+  "heliport",
+  "seaplane_base",
+]);
+
+/** Spatial grid of viewport-only airport types (not on the global JSON). */
 export function buildAirportViewportIndex(
   records: AirportRecord[],
 ): AirportViewportIndex {
   const grid = new Map<string, AirportRecord[]>();
 
   for (const record of records) {
-    if (record.type !== "small_airport") continue;
+    if (!VIEWPORT_INDEX_TYPES.has(record.type)) continue;
     const key = cellKey(record.lat, record.lon);
     const bucket = grid.get(key);
     if (bucket) {
@@ -29,7 +46,14 @@ export function buildAirportViewportIndex(
   }
 
   return {
-    query(west, south, east, north) {
+    query(
+      west: number,
+      south: number,
+      east: number,
+      north: number,
+      typeFilter: AirportType[] | null = null,
+    ) {
+      const allowedViewport = new Set(enabledViewportTypes(typeFilter));
       const minLatCell = Math.floor(south / AIRPORT_GRID_CELL_DEG);
       const maxLatCell = Math.floor(north / AIRPORT_GRID_CELL_DEG);
       const minLonCell = Math.floor(west / AIRPORT_GRID_CELL_DEG);
@@ -41,6 +65,8 @@ export function buildAirportViewportIndex(
           const bucket = grid.get(`${latCell},${lonCell}`);
           if (!bucket) continue;
           for (const record of bucket) {
+            if (!allowedViewport.has(record.type as AirportType)) continue;
+            if (!passesAirportTypeFilter(record.type, typeFilter)) continue;
             if (
               record.lon >= west &&
               record.lon <= east &&

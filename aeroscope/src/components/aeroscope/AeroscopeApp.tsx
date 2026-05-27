@@ -7,6 +7,7 @@ import { AircraftEntities } from "@/components/cesium/AircraftEntities";
 import { AirportEntities } from "@/components/cesium/AirportEntities";
 import { FlightTrailLayer } from "@/components/cesium/FlightTrailLayer";
 import { ImageryLayerManager } from "@/components/cesium/ImageryLayerManager";
+import { TilesetLayerManager } from "@/components/cesium/TilesetLayerManager";
 import { ScenePickHandler } from "@/components/cesium/ScenePickHandler";
 import { HUD } from "@/components/hud/HUD";
 import { useAircraftSystemLifecycle } from "@/hooks/useAircraftSystemLifecycle";
@@ -38,6 +39,7 @@ export default function AeroscopeApp() {
       {showHud && (
         <>
           <ImageryLayerManager />
+          <TilesetLayerManager />
           <AircraftEntities />
           <AirportEntities />
           <FlightTrailLayer />

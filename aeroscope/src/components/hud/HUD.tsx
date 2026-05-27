@@ -7,9 +7,10 @@ import { AircraftInspector } from "./AircraftInspector";
 import { AircraftList } from "./AircraftList";
 import { AirportHoverTooltip } from "./AirportHoverTooltip";
 import { AirportPicker } from "./AirportPicker";
+import { AirportTypeFilter } from "./AirportTypeFilter";
 import { ClassFilter } from "./ClassFilter";
-import { ImagerySelector } from "./ImagerySelector";
 import { WakeFilter } from "./WakeFilter";
+import { MapLayerControls } from "./MapLayerControls";
 import { StatusBar } from "./StatusBar";
 import { TrafficViewToggle } from "./TrafficViewToggle";
 import {
@@ -24,10 +25,12 @@ function HudSidebar({
   children,
   isMobile,
   drawerOpen,
+  topOffset,
 }: {
   children: ReactNode;
   isMobile: boolean;
   drawerOpen: boolean;
+  topOffset: number;
 }) {
   const sidebarWidth = isMobile ? HUD_SIDEBAR_WIDTH_MOBILE : HUD_SIDEBAR_WIDTH;
   const translateX =
@@ -54,7 +57,7 @@ function HudSidebar({
         className="hud-sidebar"
         style={{
           position: "absolute",
-          top: HUD_STATUS_BAR_MIN_HEIGHT,
+          top: topOffset,
           left: 0,
           bottom: 0,
           width: sidebarWidth,
@@ -68,6 +71,7 @@ function HudSidebar({
           pointerEvents: "none",
           transform: `translateX(${translateX}px)`,
           transition: "transform 0.22s ease-out",
+          overflow: "hidden",
         }}
       >
         <div
@@ -77,7 +81,10 @@ function HudSidebar({
             gap: HUD_PANEL_GAP,
             flex: 1,
             minHeight: 0,
+            overflowY: "auto",
+            overscrollBehavior: "contain",
             pointerEvents: isMobile && !drawerOpen ? "none" : "auto",
+            paddingRight: "2px",
           }}
         >
           {children}
@@ -90,19 +97,25 @@ function HudSidebar({
 export function HUD() {
   const isMobile = useMediaQuery(HUD_MOBILE_MEDIA);
   const drawerOpen = useHudStore((s) => s.mobileDrawerOpen);
+  const statusBarHeight = useHudStore((s) => s.statusBarHeight);
 
   return (
     <>
       <StatusBar isMobile={isMobile} />
-      <HudSidebar isMobile={isMobile} drawerOpen={drawerOpen}>
+      <HudSidebar
+        isMobile={isMobile}
+        drawerOpen={drawerOpen}
+        topOffset={Math.max(statusBarHeight, HUD_STATUS_BAR_MIN_HEIGHT)}
+      >
         <AirportPicker isMobile={isMobile} />
-        <ImagerySelector />
+        <AirportTypeFilter />
         <ClassFilter />
         <WakeFilter />
         <AircraftList />
       </HudSidebar>
       <AircraftInspector isMobile={isMobile} />
-      <TrafficViewToggle />
+      <MapLayerControls />
+      {/* <TrafficViewToggle /> */}
       <AirportHoverTooltip />
     </>
   );

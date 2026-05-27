@@ -2,6 +2,8 @@ import {
   MdAccessTime,
   MdAirlines,
   MdCategory,
+  MdExpandLess,
+  MdExpandMore,
   MdExplore,
   MdHeight,
   MdMyLocation,
@@ -14,6 +16,7 @@ import {
   MdTimeline,
 } from "react-icons/md";
 import { useAircraftStore } from "../../store/useAircraftStore";
+import { useHudStore } from "../../store/useHudStore";
 import {
   formatDistanceToAirport,
   routeDistanceNm,
@@ -59,11 +62,16 @@ export function AircraftInspector({ isMobile }: AircraftInspectorProps) {
   const trackByFlightId = useAircraftStore((s) => s.trackByFlightId);
   const showTrail = useAircraftStore((s) => s.showTrail);
   const setShowTrail = useAircraftStore((s) => s.setShowTrail);
+  const inspectorMinimized = useHudStore(
+    (s) => Boolean(s.minimizedPanels["aircraft-inspector"]),
+  );
+  const togglePanelMinimized = useHudStore((s) => s.togglePanelMinimized);
+  const statusBarHeight = useHudStore((s) => s.statusBarHeight);
 
   const ac = selectedId ? aircraft[selectedId] : null;
   if (!ac) return null;
 
-  const layout = inspectorLayout(isMobile);
+  const layout = inspectorLayout(isMobile, statusBarHeight);
   const hasTrack = hasValidApiTrack(trackByFlightId, ac.id);
 
   const STATUS_COLORS: Record<string, string> = {
@@ -91,8 +99,9 @@ export function AircraftInspector({ isMobile }: AircraftInspectorProps) {
         bottom: layout.bottom,
         left: layout.left,
         right: layout.right,
+        top: layout.top,
         width: layout.width,
-        maxHeight: layout.maxHeight,
+        maxHeight: inspectorMinimized ? "none" : layout.maxHeight,
         overflowY: "auto",
         zIndex: 101,
         ...hudPanelStyle,
@@ -107,10 +116,10 @@ export function AircraftInspector({ isMobile }: AircraftInspectorProps) {
         borderRadius: isMobile ? "12px 12px 0 0" : hudPanelStyle.borderRadius,
       }}
     >
-      <div style={{ marginBottom: "10px" }}>
+      <div style={{ marginBottom: inspectorMinimized ? "0" : "10px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <CountryFlagByName countryName={ac.originCountry} size={24} />
-          <div>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div
               style={{
                 color,
@@ -134,9 +143,63 @@ export function AircraftInspector({ isMobile }: AircraftInspectorProps) {
               {(ac.registration ?? ac.icao24).toUpperCase()}
             </div>
           </div>
+          <button
+            type="button"
+            aria-label={
+              inspectorMinimized
+                ? "Expand aircraft panel"
+                : "Minimize aircraft panel"
+            }
+            onClick={() => togglePanelMinimized("aircraft-inspector")}
+            style={{
+              border: "1px solid #1a3a2a",
+              background: "transparent",
+              color,
+              borderRadius: "4px",
+              width: "26px",
+              height: "26px",
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 0,
+              flexShrink: 0,
+            }}
+          >
+            {inspectorMinimized ? (
+              <MdExpandMore size={16} aria-hidden />
+            ) : (
+              <MdExpandLess size={16} aria-hidden />
+            )}
+          </button>
         </div>
       </div>
 
+      {inspectorMinimized ? (
+        <InspectorGrid isMobile={isMobile} columns={1}>
+          <InspectorField
+            layout="stack"
+            icon={MdHeight}
+            label="ALT"
+            value={formatAltitudeFeet(ac.altitudeMeters)}
+          />
+          <InspectorField
+            layout="stack"
+            icon={MdSpeed}
+            label="SPD"
+            value={formatSpeedKnots(ac.velocity)}
+          />
+          <InspectorField
+            layout="stack"
+            icon={MdRoute}
+            label="ROUTE"
+            value={
+              hasAnyRoute ? `${origin} -> ${destination}` : "No flight plan"
+            }
+          />
+        </InspectorGrid>
+      ) : (
+        <>
       <InspectorGrid isMobile={isMobile} columns={isMobile ? 1 : 2}>
         <InspectorField
           layout="stack"
@@ -306,6 +369,8 @@ export function AircraftInspector({ isMobile }: AircraftInspectorProps) {
           {cameraMode === "follow" ? "FOLLOWING" : "FOLLOW"}
         </span>
       </button>
+        </>
+      )}
     </div>
   );
 }

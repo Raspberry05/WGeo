@@ -41,10 +41,12 @@ export function AirportPicker({ isMobile = false }: AirportPickerProps) {
 
   return (
     <HudPanel
+      panelId="airport-picker"
       title="AIRPORTS"
       titleIcon={MdLocalAirport}
-      maxHeight={isMobile ? "min(38dvh, 280px)" : "38vh"}
-      minHeight={isMobile ? "120px" : "160px"}
+      minimizedSummary={activeAirportId}
+      maxHeight={isMobile ? "min(34dvh, 250px)" : "min(34vh, 300px)"}
+      minHeight={isMobile ? "100px" : "120px"}
     >
       <div style={{ padding: "8px 10px", borderBottom: "1px solid #0d1f10" }}>
         <div style={{ position: "relative" }}>

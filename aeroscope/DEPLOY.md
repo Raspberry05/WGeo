@@ -73,7 +73,7 @@ Implementation: `src/lib/aeroapi/` + `src/app/api/flights/`.
 | **Airport** (default) | Status bar → Airport | Bbox around active airport | Full catalog; small airports when zoomed in (&lt; 2M m camera height) |
 | **Aircraft / Viewport** | Status bar → Viewport | Camera view rectangle (max ~8° span when zoomed out) | **No airport markers** (hidden for clarity) |
 
-- Viewport mode filters aircraft to the **visible camera rectangle**, then caps at **800** if needed.
+- Viewport mode filters aircraft to the **visible camera rectangle**, then caps at **3000** only if the API returns more than that (sorted by distance to view center, not camera position).
 - Airport mode shows global airports plus **small airports in the current viewport** (no zoom height gate).
 - Selecting a flight fetches enrich + track once (not on every poll).
 - **Flight trail** draws only when AeroAPI returns **≥ 2 historical track points**; no poll-based breadcrumb fallback.
@@ -82,6 +82,6 @@ Implementation: `src/lib/aeroapi/` + `src/app/api/flights/`.
 ## Rate limits (Basic tier)
 
 - Poll interval ~6s with ~5.5s server cache (see `src/config/aircraftMotion.ts`).
-- AeroAPI search uses `max_pages=1` per request.
+- AeroAPI search uses **1–5 pages** per request depending on bbox size (larger views request more pages).
 - Enrich and track are cached **5 minutes** server-side; avoid rapid selection spam.
 - On **429**, the API may return 503; the client shows an empty map until the next poll.

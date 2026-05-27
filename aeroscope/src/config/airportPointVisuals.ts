@@ -15,6 +15,9 @@ export const AIRPORT_ACTIVE_SCALE = new NearFarScalar(0, 1.0, 1, 1.0);
 /** Slightly shrink distant markers for clarity at globe scale. */
 export const AIRPORT_POINT_SCALE = new NearFarScalar(8.0e5, 1.0, 1.2e7, 0.4);
 
+/** Gentler shrink when few airport types are visible (small / heli / seaplane solo). */
+export const AIRPORT_POINT_SCALE_LOOSE = new NearFarScalar(8.0e5, 1.12, 1.2e7, 0.72);
+
 /** Meters above terrain for inactive airport markers (triangle base). */
 export const AIRPORT_POINT_HEIGHT_M = 12;
 

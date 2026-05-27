@@ -1,8 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { VIEWPORT_POLL_DEBOUNCE_MS } from "@/config/trafficView";
 import { requestAircraftPoll } from "@/systems/aircraftSystem";
 import { useAircraftStore } from "@/store/useAircraftStore";
 import { useCesiumStore } from "@/store/useCesiumStore";
+import { getViewportBounds } from "@/utils/cameraBounds";
+import { viewportChunkKeys } from "@/utils/viewportChunks";
 
 /**
  * Debounced refetch when the camera stops moving in aircraft traffic mode.
@@ -18,14 +20,25 @@ export function useViewportFlightPoll(): void {
     }
   }, [trafficViewMode, viewModeToken, viewer]);
 
+  const lastChunkKeyRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!viewer || trafficViewMode !== "aircraft") return;
+
+    lastChunkKeyRef.current = null;
 
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
     const onMoveEnd = (): void => {
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
+        const viewport = getViewportBounds(viewer);
+        if (!viewport) return;
+
+        const chunkKey = viewportChunkKeys(viewport.bounds);
+        if (chunkKey === lastChunkKeyRef.current) return;
+
+        lastChunkKeyRef.current = chunkKey;
         requestAircraftPoll();
       }, VIEWPORT_POLL_DEBOUNCE_MS);
     };

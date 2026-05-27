@@ -2,13 +2,13 @@
 
 import { useEffect, useRef } from "react";
 import {
-  BingMapsImageryProvider,
-  BingMapsStyle,
   IonImageryProvider,
   OpenStreetMapImageryProvider,
   UrlTemplateImageryProvider,
-  type Viewer,
+  type ImageryProvider,
 } from "cesium";
+import { getImageryOption } from "@/config/imageryOptions";
+import { imageryBlockedBy3d } from "@/config/tilesetOptions";
 import { useCesiumStore } from "@/store/useCesiumStore";
 import { useMapSettingsStore } from "@/store/useMapSettingsStore";
 
@@ -19,67 +19,60 @@ function createEsriWorldImagery(): UrlTemplateImageryProvider {
   });
 }
 
-async function createIonDefaultImagery(): Promise<IonImageryProvider> {
-  // Kept consistent with initCesiumScene().
-  return IonImageryProvider.fromAssetId(3830182);
-}
+async function createImageryProvider(
+  imageryId: ReturnType<typeof useMapSettingsStore.getState>["imageryId"],
+): Promise<ImageryProvider> {
+  const option = getImageryOption(imageryId);
 
-async function createProvider(
-  viewer: Viewer,
-  baseImagery: ReturnType<typeof useMapSettingsStore.getState>["baseImagery"],
-  ionAssetId: number | null,
-) {
-  switch (baseImagery) {
-    case "osm":
-      return new OpenStreetMapImageryProvider({});
-    case "esri_world_imagery":
-      return createEsriWorldImagery();
-    case "bing_aerial":
-      return new BingMapsImageryProvider({
-        // Uses Cesium's default Bing endpoint; token/keys handled by Cesium/Ion config.
-        mapStyle: BingMapsStyle.AERIAL,
-      });
-    case "bing_road":
-      return new BingMapsImageryProvider({
-        mapStyle: BingMapsStyle.ROAD,
-      });
-    case "ion_asset":
-      if (!ionAssetId) return createIonDefaultImagery();
-      return IonImageryProvider.fromAssetId(ionAssetId);
-    case "ion_default":
-    default:
-      return createIonDefaultImagery();
+  if (option.ionAssetId != null) {
+    return IonImageryProvider.fromAssetId(option.ionAssetId);
   }
+
+  if (option.provider === "osm") {
+    return new OpenStreetMapImageryProvider({});
+  }
+
+  return createEsriWorldImagery();
 }
 
 export function ImageryLayerManager() {
   const viewer = useCesiumStore((s) => s.viewer);
-  const baseImagery = useMapSettingsStore((s) => s.baseImagery);
-  const ionAssetId = useMapSettingsStore((s) => s.ionImageryAssetId);
+  const imageryId = useMapSettingsStore((s) => s.imageryId);
+  const buildings3dId = useMapSettingsStore((s) => s.buildings3dId);
   const lastKeyRef = useRef<string>("");
 
   useEffect(() => {
     if (!viewer || viewer.isDestroyed()) return;
 
-    const key = `${baseImagery}:${ionAssetId ?? ""}`;
+    const blocked = imageryBlockedBy3d(buildings3dId);
+    const key = blocked ? "__google_3d_blocked__" : imageryId;
+
     if (key === lastKeyRef.current) return;
     lastKeyRef.current = key;
+
+    if (blocked) {
+      viewer.imageryLayers.removeAll();
+      return;
+    }
 
     let cancelled = false;
 
     void (async () => {
-      const provider = await createProvider(viewer, baseImagery, ionAssetId);
-      if (cancelled || viewer.isDestroyed()) return;
+      try {
+        const provider = await createImageryProvider(imageryId);
+        if (cancelled || viewer.isDestroyed()) return;
 
-      viewer.imageryLayers.removeAll();
-      viewer.imageryLayers.addImageryProvider(provider);
+        viewer.imageryLayers.removeAll();
+        viewer.imageryLayers.addImageryProvider(provider);
+      } catch (error) {
+        console.error("[Aeroscope] Imagery provider failed:", imageryId, error);
+      }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [viewer, baseImagery, ionAssetId]);
+  }, [viewer, imageryId, buildings3dId]);
 
   return null;
 }
-

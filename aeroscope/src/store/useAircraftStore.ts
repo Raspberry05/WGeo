@@ -1,4 +1,8 @@
 import { create } from "zustand";
+import {
+  DEFAULT_AIRPORT_TYPE_FILTER,
+  type AirportType,
+} from "@/config/airportFilters";
 import { DEFAULT_AIRPORT_ID } from "../data/airports";
 import type { FlightDetailDto } from "../lib/aeroapi/types";
 import type { AircraftClass, WakeTurbulenceCategory } from "@/domain/aircraft/openAircraftType";
@@ -65,6 +69,9 @@ interface AircraftStore {
   cameraFlyTargetId: string | null;
   classFilter: AircraftClass[] | null;
   wakeFilter: WakeTurbulenceCategory[] | null;
+  /** `null` = show all airport types. Default: large (international) only. */
+  airportTypeFilter: AirportType[] | null;
+  airportFilterToken: number;
   airportCatalogReady: boolean;
   hoveredAirportId: string | null;
   hoverScreen: { x: number; y: number } | null;
@@ -93,6 +100,8 @@ interface AircraftStore {
   setCameraMode: (mode: CameraMode) => void;
   setClassFilter: (codes: AircraftClass[] | null) => void;
   setWakeFilter: (codes: WakeTurbulenceCategory[] | null) => void;
+  setAirportTypeFilter: (filter: AirportType[] | null) => void;
+  bumpAirportFilterToken: () => void;
   setAirportHover: (
     airportId: string | null,
     screen: { x: number; y: number } | null,
@@ -117,6 +126,8 @@ export const useAircraftStore = create<AircraftStore>((set) => ({
   cameraFlyTargetId: DEFAULT_AIRPORT_ID,
   classFilter: null,
   wakeFilter: null,
+  airportTypeFilter: [...DEFAULT_AIRPORT_TYPE_FILTER],
+  airportFilterToken: 0,
   airportCatalogReady: false,
   hoveredAirportId: null,
   hoverScreen: null,
@@ -144,7 +155,11 @@ export const useAircraftStore = create<AircraftStore>((set) => ({
   selectAircraft: (id) =>
     set((state) => ({
       selectedId: id,
-      cameraMode: id ? "follow" : "free",
+      cameraMode: !id
+        ? "free"
+        : state.selectedId === id
+          ? state.cameraMode
+          : "follow",
       trackLoadingId: id && id !== state.selectedId ? id : state.trackLoadingId,
     })),
   setActiveAirport: (id) =>
@@ -202,6 +217,9 @@ export const useAircraftStore = create<AircraftStore>((set) => ({
   setCameraMode: (cameraMode) => set({ cameraMode }),
   setClassFilter: (classFilter) => set({ classFilter }),
   setWakeFilter: (wakeFilter) => set({ wakeFilter }),
+  setAirportTypeFilter: (airportTypeFilter) => set({ airportTypeFilter }),
+  bumpAirportFilterToken: () =>
+    set((s) => ({ airportFilterToken: s.airportFilterToken + 1 })),
   setAirportHover: (hoveredAirportId, hoverScreen) =>
     set({ hoveredAirportId, hoverScreen }),
 }));

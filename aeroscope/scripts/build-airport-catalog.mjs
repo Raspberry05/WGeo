@@ -1,6 +1,6 @@
 /**
  * Downloads OurAirports airports.csv and builds:
- *   public/data/airports-global.json  — large + medium (map dots)
+ *   public/data/airports-global.json  — all types (map markers)
  *   public/data/airports-index.json   — full catalog (search / metadata)
  * Run: node scripts/build-airport-catalog.mjs
  */
@@ -20,9 +20,12 @@ const INCLUDED_TYPES = new Set([
   "large_airport",
   "medium_airport",
   "small_airport",
+  "heliport",
+  "seaplane_base",
 ]);
 
-const GLOBAL_TYPES = new Set(["large_airport", "medium_airport"]);
+/** Every included type is drawn on the global map layer (filtered in the HUD). */
+const GLOBAL_TYPES = INCLUDED_TYPES;
 
 function parseCsvLine(line) {
   const result = [];

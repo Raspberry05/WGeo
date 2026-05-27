@@ -13,6 +13,7 @@ Aeroscope is a real-time 3D air-traffic viewer built with Next.js and Cesium. It
 ## Core functionality
 
 - **Airport selection**: search and jump to an airport; traffic refreshes around the active airport
+- **World airport catalog** (OurAirports): large, medium, small, seaplane, and heliport data with HUD type filters (default: international/large only)
 - **Live traffic map**: aircraft entities update continuously; off-screen culling in viewport mode
 - **Flight inspector HUD**:
   - callsign/registration, type/model/operator (when available)
@@ -37,6 +38,16 @@ Aeroscope is a real-time 3D air-traffic viewer built with Next.js and Cesium. It
 cd aeroscope
 npm install
 ```
+
+### Airport data (worldwide)
+
+Airports ship as static JSON under `public/data/` (from [OurAirports](https://ourairports.com/data/)). To refresh or include heliports/seaplane bases:
+
+```bash
+node scripts/build-airport-catalog.mjs
+```
+
+This writes `airports-index.json` (full catalog + search) and `airports-global.json` (all airport types for the map). Enable types in the **AIRPORTS** HUD panel; marker size and shape still follow type and filter (triangles, H, seaplane square).
 
 ### Environment variables
 
@@ -70,6 +81,12 @@ npm run start
 - **Availability varies**: some flights may not provide operator/model/schedule/gate fields.
 - **Classification is best-effort**: CLASS/WAKE come from the ICAO type designator when a valid `aircraft_type` (ICAO code) is present; otherwise values may be `null`.
 - **Rate limits**: FlightAware API usage is subject to account limits; polling cadence and bounding-box caps are tuned to avoid excessive requests.
+
+### Viewport traffic vs “load the whole globe”
+
+**Viewport mode** (camera traffic) is intentional: each request asks AeroAPI for a **lat/lon bounding box** aligned to a coarse grid chunk (~4° cells), with padding ahead of the camera. As you pan into a new chunk, a new request runs; within the same chunk, the ~6s timer refreshes positions. The map **only draws aircraft inside the current camera rectangle**; airport mode still uses a fixed airport bbox.
+
+A **single global fetch** is not used because it would be slower and more expensive in practice: tens of thousands of flights, huge JSON payloads, rate-limit risk, and stale positions everywhere. Filtering on the client after a global download would still require downloading all of that data first. Chunked viewport queries match how AeroAPI search works and keep responses small.
 
 ## Project structure (high level)
 

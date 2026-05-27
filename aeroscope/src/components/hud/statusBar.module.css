@@ -1,0 +1,210 @@
+.bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  min-height: 52px;
+  box-sizing: border-box;
+  z-index: 110;
+  background: rgba(0, 8, 16, 0.92);
+  border-bottom: 1px solid #1a3a2a;
+  font-family: monospace;
+  color: #7a9a8a;
+  padding-top: max(10px, env(safe-area-inset-top));
+  padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+  /* padding-left / padding-right set inline via statusBarHorizontalPadding() */
+}
+
+/* Desktop: brand (left) | details (flex) | stats (right) */
+.wide {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "lead main stats";
+  align-items: center;
+  column-gap: clamp(12px, 2vw, 24px);
+  row-gap: 8px;
+}
+
+.leadColumn {
+  grid-area: lead;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  justify-self: start;
+}
+
+.mainColumn {
+  grid-area: main;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 6px;
+}
+
+.statsColumn {
+  grid-area: stats;
+  justify-self: end;
+  align-self: center;
+  flex-shrink: 0;
+}
+
+/* Narrow / mobile: row1 = brand left + stats right; row2 = full-width details */
+.compact {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "lead stats"
+    "main main";
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 10px;
+}
+
+.compact .leadColumn {
+  justify-self: start;
+}
+
+.compact .mainColumn {
+  width: 100%;
+}
+
+.compact .statsColumn {
+  justify-self: end;
+}
+
+.brand {
+  color: #00ff88;
+  font-weight: bold;
+  letter-spacing: 2px;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  min-width: 0;
+  width: 100%;
+}
+
+.divider {
+  width: 1px;
+  height: 22px;
+  background: #1a3a2a;
+  flex-shrink: 0;
+}
+
+.airportChip {
+  font-size: 15px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.airportChipText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pickModeHint {
+  color: #5a8a6a;
+  white-space: nowrap;
+}
+
+.statsCluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px 18px;
+}
+
+.aircraftCount {
+  font-size: 15px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.liveStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.liveDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.menuButton {
+  flex-shrink: 0;
+  padding: 8px;
+  margin: -8px 0;
+  background: transparent;
+  border: 1px solid #1a3a2a;
+  border-radius: 4px;
+  color: #00ff88;
+  cursor: pointer;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.selectedBlock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px 8px;
+  font-size: 15px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+.sep {
+  color: #5a7a6a;
+  user-select: none;
+}
+
+.callsign {
+  color: #00ff88;
+  font-weight: bold;
+}
+
+.metric {
+  color: #00ccff;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.routeRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.schedule {
+  color: #4a6a5a;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}

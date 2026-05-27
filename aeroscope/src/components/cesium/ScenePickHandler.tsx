@@ -6,6 +6,7 @@ import {
   ScreenSpaceEventType,
 } from "cesium";
 import { airportIdFromPicks } from "../../utils/airportPick";
+import { exitFollowFromUser } from "../../utils/cesiumCamera";
 import { enrichSelectedAircraft } from "../../services/aircraftEnrichment";
 import { useAircraftStore } from "../../store/useAircraftStore";
 import { useCesiumStore } from "../../store/useCesiumStore";
@@ -36,6 +37,9 @@ function handleScenePick(viewer: Viewer, position: Cartesian2): void {
     if (ac) {
       const isSelected = state.selectedId === id;
       if (isSelected) {
+        if (state.cameraMode === "follow") {
+          exitFollowFromUser(viewer);
+        }
         useAircraftStore.getState().selectAircraft(null);
       } else {
         useAircraftStore.getState().selectAircraft(id);
@@ -80,12 +84,13 @@ export function ScenePickHandler() {
 
   useEffect(() => {
     if (!isViewerLive(viewer)) return;
+    const currentViewer = viewer;
 
-    const handler = new ScreenSpaceEventHandler(viewer.canvas);
+    const handler = new ScreenSpaceEventHandler(currentViewer.canvas);
     let hoverRaf = 0;
 
     const onPick = (position: Cartesian2) => {
-      handleScenePick(viewer, position);
+      handleScenePick(currentViewer, position);
     };
 
     const useTouchPick =
@@ -104,8 +109,8 @@ export function ScenePickHandler() {
       if (hoverRaf) cancelAnimationFrame(hoverRaf);
       hoverRaf = requestAnimationFrame(() => {
         hoverRaf = 0;
-        const airportId = resolveHoverAirport(viewer, movement.endPosition);
-        const canvas = viewer.canvas;
+        const airportId = resolveHoverAirport(currentViewer, movement.endPosition);
+        const canvas = currentViewer.canvas;
         if (airportId) {
           const activeId = useAircraftStore.getState().activeAirportId;
           if (airportId === activeId) {
@@ -127,7 +132,9 @@ export function ScenePickHandler() {
 
     return () => {
       if (hoverRaf) cancelAnimationFrame(hoverRaf);
-      viewer.canvas.style.cursor = "";
+      if (currentViewer.canvas) {
+        currentViewer.canvas.style.cursor = "";
+      }
       useAircraftStore.getState().setAirportHover(null, null);
       if (!handler.isDestroyed()) {
         handler.destroy();

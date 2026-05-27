@@ -8,8 +8,6 @@ import {
 import { useAircraftStore } from "../../store/useAircraftStore";
 import { useActiveAirportOverlay } from "../../hooks/useActiveAirportOverlay";
 import { useAirportGlobalLayer } from "../../hooks/useAirportGlobalLayer";
-import { useAirportViewportLayer } from "../../hooks/useAirportViewportLayer";
-
 export function AirportEntities() {
   const viewer = useCesiumStore(selectCesiumViewer);
   const sceneTerrainReady = useCesiumStore(selectSceneTerrainReady);
@@ -17,6 +15,8 @@ export function AirportEntities() {
   const activeAirportId = useAircraftStore(selectActiveAirportId);
   const trafficViewMode = useAircraftStore((s) => s.trafficViewMode);
   const viewModeToken = useAircraftStore((s) => s.viewModeToken);
+  const airportTypeFilter = useAircraftStore((s) => s.airportTypeFilter);
+  const airportFilterToken = useAircraftStore((s) => s.airportFilterToken);
 
   const layer = useAirportGlobalLayer({
     viewer,
@@ -25,16 +25,8 @@ export function AirportEntities() {
     activeAirportId,
     trafficViewMode,
     viewModeToken,
-  });
-
-  useAirportViewportLayer({
-    viewer,
-    catalogReady,
-    sceneTerrainReady,
-    activeAirportId,
-    trafficViewMode,
-    viewModeToken,
-    layer,
+    airportTypeFilter,
+    airportFilterToken,
   });
 
   useActiveAirportOverlay({

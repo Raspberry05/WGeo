@@ -60,7 +60,15 @@ function ModeButton({
   );
 }
 
-export function TrafficViewToggle() {
+export type TrafficViewToggleVariant = "floating" | "inline";
+
+export interface TrafficViewToggleProps {
+  variant?: TrafficViewToggleVariant;
+}
+
+export function TrafficViewToggle({
+  variant = "floating",
+}: TrafficViewToggleProps) {
   const mode = useAircraftStore((s) => s.trafficViewMode);
   const setTrafficViewMode = useAircraftStore((s) => s.setTrafficViewMode);
 
@@ -70,20 +78,32 @@ export function TrafficViewToggle() {
 
   const iconColor = (active: boolean) => (active ? hudAccent : hudMuted);
 
+  const isInline = variant === "inline";
+
   return (
     <div
       className="hud-traffic-view-toggle"
       style={{
-        position: "absolute",
-        right: "max(12px, env(safe-area-inset-right))",
-        bottom: "max(12px, env(safe-area-inset-bottom))",
-        zIndex: 102,
-        display: "flex",
-        flexDirection: "row",
-        gap: "8px",
-        padding: "6px",
+        ...(isInline
+          ? {
+              display: "flex",
+              flexDirection: "row",
+              gap: "8px",
+              padding: "10px 12px",
+              justifyContent: "center",
+            }
+          : {
+              position: "absolute",
+              right: "max(12px, env(safe-area-inset-right))",
+              bottom: "max(12px, env(safe-area-inset-bottom))",
+              zIndex: 102,
+              display: "flex",
+              flexDirection: "row",
+              gap: "8px",
+              padding: "6px",
+              pointerEvents: "auto",
+            }),
         ...hudPanelStyle,
-        pointerEvents: "auto",
       }}
       role="group"
       aria-label="Traffic view mode"

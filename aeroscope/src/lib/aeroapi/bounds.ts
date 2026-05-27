@@ -5,6 +5,33 @@ export type FlightBounds = {
   lomax: number;
 };
 
+export function parseBoxes(
+  query: Record<string, string | string[] | undefined>,
+): FlightBounds[] | null {
+  const raw = query.box;
+  const list = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  if (list.length === 0) return null;
+
+  const bounds: FlightBounds[] = [];
+  for (const item of list) {
+    const parts = String(item)
+      .split(",")
+      .map((s) => s.trim());
+    if (parts.length !== 4) return null;
+
+    const lamin = parseFloat(parts[0]!);
+    const lomin = parseFloat(parts[1]!);
+    const lamax = parseFloat(parts[2]!);
+    const lomax = parseFloat(parts[3]!);
+
+    const one = parseBounds({ lamin: String(lamin), lomin: String(lomin), lamax: String(lamax), lomax: String(lomax) });
+    if (!one) return null;
+    bounds.push(one);
+  }
+
+  return bounds;
+}
+
 export function parseBounds(
   query: Record<string, string | string[] | undefined>,
 ): FlightBounds | null {

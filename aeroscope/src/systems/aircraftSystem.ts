@@ -6,7 +6,9 @@ import { fetchFlightsInBounds } from "../services/flights";
 import { useAircraftStore, type AircraftState } from "../store/useAircraftStore";
 import { useCesiumStore } from "../store/useCesiumStore";
 import { getViewportBounds } from "../utils/cameraBounds";
+import { mergeViewportAircraftPoll } from "./viewportAircraftMerge";
 import type { FlightBounds } from "../lib/aeroapi/bounds";
+import { boundsKey } from "../lib/aeroapi/bounds";
 import {
   removeInterpolationTarget,
   setInterpolationTarget,
@@ -42,6 +44,8 @@ export async function startAircraftSystem(): Promise<() => void> {
 
   let pollTimer: ReturnType<typeof setTimeout> | null = null;
   let inFlight = false;
+  let pendingPoll = false;
+  let activeAbort: AbortController | null = null;
 
   const scheduleNextPoll = (delayMs: number): void => {
     if (generation !== activeGeneration) return;
@@ -52,13 +56,14 @@ export async function startAircraftSystem(): Promise<() => void> {
   };
 
   const resolvePollContext = (): {
-    bounds: FlightBounds;
+    bounds: FlightBounds | FlightBounds[];
     scene:
       | { mode: "airport"; airport: ReturnType<typeof getAirport> }
       | { mode: "viewport"; refLat: number; refLon: number };
     centerLat: number;
     centerLon: number;
     cameraRect?: CameraRect;
+    boundsKey: string;
   } | null => {
     const state = useAircraftStore.getState();
 
@@ -69,6 +74,7 @@ export async function startAircraftSystem(): Promise<() => void> {
         scene: { mode: "airport", airport },
         centerLat: airport.lat,
         centerLon: airport.lon,
+        boundsKey: boundsKey(airport.bounds),
       };
     }
 
@@ -94,12 +100,17 @@ export async function startAircraftSystem(): Promise<() => void> {
       centerLat: viewport.centerLat,
       centerLon: viewport.centerLon,
       cameraRect: viewport.cameraRect,
+      boundsKey: viewport.bounds.map((b) => boundsKey(b)).sort().join("|"),
     };
   };
 
   const fetchReal = async (): Promise<void> => {
     if (generation !== activeGeneration) return;
-    if (inFlight) return;
+    if (inFlight) {
+      pendingPoll = true;
+      activeAbort?.abort();
+      return;
+    }
 
     const ctx = resolvePollContext();
     if (!ctx) {
@@ -114,6 +125,9 @@ export async function startAircraftSystem(): Promise<() => void> {
 
     inFlight = true;
     const fetchStartedMs = Date.now();
+    pendingPoll = false;
+    activeAbort?.abort();
+    activeAbort = new AbortController();
 
     const state = useAircraftStore.getState();
     const current = state.aircraft;
@@ -123,8 +137,16 @@ export async function startAircraftSystem(): Promise<() => void> {
         centerLat: ctx.centerLat,
         centerLon: ctx.centerLon,
         cameraRect: ctx.cameraRect,
+        signal: activeAbort.signal,
       });
       if (generation !== activeGeneration) return;
+
+      // If the camera moved while we were fetching, don't apply stale results.
+      const latest = resolvePollContext();
+      if (latest && latest.boundsKey !== ctx.boundsKey) {
+        pendingPoll = true;
+        return;
+      }
 
       const receivedAtMs = Date.now();
       const fetchRttMs = receivedAtMs - fetchStartedMs;
@@ -139,20 +161,26 @@ export async function startAircraftSystem(): Promise<() => void> {
       }
 
       const syncMeta: MotionSyncMeta = { receivedAtMs, fetchRttMs };
-      const next: Record<string, AircraftState> = {};
-      const seen = new Set<string>();
 
-      fresh.forEach((ac) => {
-        seen.add(ac.id);
-        setInterpolationTarget(current[ac.id], ac, syncMeta);
-        next[ac.id] = mergeAircraftRow(current[ac.id], ac);
-      });
-
-      for (const id of Object.keys(current)) {
-        if (!seen.has(id)) {
-          removeInterpolationTarget(id);
-        }
-      }
+      const next =
+        ctx.scene.mode === "viewport" && ctx.cameraRect
+          ? mergeViewportAircraftPoll(
+              current,
+              fresh,
+              ctx.cameraRect,
+              syncMeta,
+            )
+          : (() => {
+              const map: Record<string, AircraftState> = {};
+              fresh.forEach((ac) => {
+                setInterpolationTarget(current[ac.id], ac, syncMeta);
+                map[ac.id] = mergeAircraftRow(current[ac.id], ac);
+              });
+              for (const id of Object.keys(current)) {
+                if (!map[id]) removeInterpolationTarget(id);
+              }
+              return map;
+            })();
 
       useAircraftStore.getState().setAircraft(next);
       useAircraftStore.getState().setConnectionStatus("LIVE");
@@ -161,11 +189,23 @@ export async function startAircraftSystem(): Promise<() => void> {
       const nextDelay = Math.max(0, AIRCRAFT_POLL_INTERVAL_MS - elapsed);
       scheduleNextPoll(nextDelay);
     } catch (err) {
+      if ((err as { name?: string }).name === "AbortError") {
+        // Camera moved: we'll refetch immediately if requested.
+        pendingPoll = true;
+        return;
+      }
       console.error("Flight data fetch failed:", err);
       useAircraftStore.getState().setConnectionStatus("CONNECTING");
       scheduleNextPoll(AIRCRAFT_POLL_INTERVAL_MS);
     } finally {
       inFlight = false;
+      activeAbort = null;
+
+      if (pendingPoll) {
+        pendingPoll = false;
+        if (pollTimer) clearTimeout(pollTimer);
+        void fetchReal();
+      }
     }
   };
 

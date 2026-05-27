@@ -36,9 +36,12 @@ export function AircraftList() {
 
   return (
     <HudPanel
+      panelId="aircraft-list"
       title={`TRAFFIC · ${list.length}`}
       titleIcon={MdAirplanemodeActive}
+      minimizedSummary={`${list.length} in view`}
       flex={1}
+      minHeight="140px"
     >
       <div style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
         {list.map((ac) => {

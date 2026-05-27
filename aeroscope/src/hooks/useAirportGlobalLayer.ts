@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import { BillboardCollection, type Viewer } from "cesium";
+import type { AirportType } from "@/config/airportFilters";
 import {
   getAirportRecord,
   getAirportRecordsForMap,
@@ -21,6 +22,8 @@ export type UseAirportGlobalLayerParams = {
   activeAirportId: string;
   trafficViewMode: "airport" | "aircraft";
   viewModeToken: number;
+  airportTypeFilter: AirportType[] | null;
+  airportFilterToken: number;
 };
 
 function createEmptyLayerRefs(): AirportLayerRefs {
@@ -51,6 +54,8 @@ export function useAirportGlobalLayer({
   activeAirportId,
   trafficViewMode,
   viewModeToken,
+  airportTypeFilter,
+  airportFilterToken,
 }: UseAirportGlobalLayerParams): AirportLayerRefs {
   const layerRef = useRef(createEmptyLayerRefs());
 
@@ -93,7 +98,7 @@ export function useAirportGlobalLayer({
       return;
     }
 
-    const records = getAirportRecordsForMap();
+    const records = getAirportRecordsForMap(airportTypeFilter);
     const collection = new BillboardCollection();
     viewer.scene.primitives.add(collection);
     layer.points = collection;
@@ -142,6 +147,8 @@ export function useAirportGlobalLayer({
     activeAirportId,
     trafficViewMode,
     viewModeToken,
+    airportTypeFilter,
+    airportFilterToken,
     layerApi,
   ]);
 

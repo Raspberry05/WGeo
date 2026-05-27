@@ -1,4 +1,5 @@
 import {
+  BoundingSphere,
   Cartesian3,
   EasingFunction,
   HeadingPitchRange,
@@ -12,6 +13,12 @@ import { ATL_COORDS } from "../config/cesium";
 import { getAirport } from "../data/airports";
 import { getInterpolatedGeoState } from "../systems/interpolationSystem";
 import { useAircraftStore } from "../store/useAircraftStore";
+import { useHudStore } from "../store/useHudStore";
+import {
+  HUD_INSPECTOR_WIDTH,
+  HUD_MOBILE_BREAKPOINT_PX,
+  HUD_SIDEBAR_WIDTH,
+} from "../components/hud/hudTheme";
 
 export const MIN_ZOOM_M = 80;
 export const MAX_ZOOM_M = 12_000_000;
@@ -73,6 +80,22 @@ export function releaseCameraLock(camera: Camera): void {
   camera.lookAtTransform(Matrix4.IDENTITY);
 }
 
+/** Release lookAt lock without changing the view (avoids camera jump to space). */
+export function releaseCameraLockPreservePose(camera: Camera): void {
+  if (Matrix4.equals(camera.transform, Matrix4.IDENTITY)) {
+    return;
+  }
+
+  const position = Cartesian3.clone(camera.positionWC);
+  const direction = Cartesian3.clone(camera.directionWC);
+  const up = Cartesian3.clone(camera.upWC);
+
+  camera.lookAtTransform(Matrix4.IDENTITY);
+  camera.position = position;
+  camera.direction = direction;
+  camera.up = up;
+}
+
 function clampFollowRange(range: number): number {
   return CesiumMath.clamp(range, FOLLOW_MIN_RANGE_M, FOLLOW_MAX_RANGE_M);
 }
@@ -102,6 +125,21 @@ function applyFollowTransform(
  * Re-lock the camera to the aircraft center using the current orbit offsets.
  * Runs each preRender so user rotate/zoom from the prior frame are preserved.
  */
+function exitFollowMode(viewer: Viewer): void {
+  const state = useAircraftStore.getState();
+  if (state.cameraMode !== "follow") return;
+
+  releaseCameraLockPreservePose(viewer.camera);
+  setFollowControllerMode(viewer, false);
+  lastFollowAircraftId = null;
+  useAircraftStore.getState().setCameraMode("free");
+}
+
+/** User ended follow (drag or click); keeps selection and camera pose. */
+export function exitFollowFromUser(viewer: Viewer): void {
+  exitFollowMode(viewer);
+}
+
 function updateFollowCamera(viewer: Viewer, icao24: string): void {
   const center = getAircraftCenter(icao24);
   if (!center) return;
@@ -118,6 +156,38 @@ function updateFollowCamera(viewer: Viewer, icao24: string): void {
   }
 
   applyFollowTransform(viewer, center, followView);
+}
+
+/** Exit follow when the user drags or rotates the globe (not programmatic camera moves). */
+function attachFollowInteractionExit(viewer: Viewer): () => void {
+  const canvas = viewer.scene.canvas;
+  let userGestureActive = false;
+
+  const markUserGesture = (): void => {
+    userGestureActive = true;
+  };
+  const clearUserGesture = (): void => {
+    userGestureActive = false;
+  };
+
+  const onMoveStart = (): void => {
+    if (!userGestureActive || syncingFollowTransform) return;
+    if (useAircraftStore.getState().cameraMode !== "follow") return;
+    exitFollowMode(viewer);
+    clearUserGesture();
+  };
+
+  canvas.addEventListener("pointerdown", markUserGesture);
+  canvas.addEventListener("pointerup", clearUserGesture);
+  canvas.addEventListener("pointercancel", clearUserGesture);
+  const removeMoveStart = viewer.camera.moveStart.addEventListener(onMoveStart);
+
+  return () => {
+    canvas.removeEventListener("pointerdown", markUserGesture);
+    canvas.removeEventListener("pointerup", clearUserGesture);
+    canvas.removeEventListener("pointercancel", clearUserGesture);
+    removeMoveStart();
+  };
 }
 
 function beginFollowAircraft(viewer: Viewer, icao24: string): void {
@@ -202,9 +272,9 @@ export function attachCameraSystem(viewer: Viewer): () => void {
         if (state.selectedId) {
           beginFollowAircraft(viewer, state.selectedId);
         }
-      } else {
+      } else if (prev.cameraMode === "follow") {
         setFollowControllerMode(viewer, false);
-        releaseCameraLock(viewer.camera);
+        releaseCameraLockPreservePose(viewer.camera);
         lastFollowAircraftId = null;
       }
     }
@@ -220,6 +290,7 @@ export function attachCameraSystem(viewer: Viewer): () => void {
 
   viewer.scene.preRender.addEventListener(onPreRender);
   viewer.camera.moveEnd.addEventListener(onMoveEnd);
+  const removeFollowExit = attachFollowInteractionExit(viewer);
 
   viewer.camera.setView({
     destination: Cartesian3.fromDegrees(
@@ -244,6 +315,7 @@ export function attachCameraSystem(viewer: Viewer): () => void {
   return () => {
     viewer.scene.preRender.removeEventListener(onPreRender);
     viewer.camera.moveEnd.removeEventListener(onMoveEnd);
+    removeFollowExit();
     unsubStore();
     setFollowControllerMode(viewer, false);
     releaseCameraLock(viewer.camera);
@@ -279,21 +351,59 @@ function smoothFly(
   });
 }
 
+type UiInsetsPx = { left: number; right: number; top: number; bottom: number };
+
+function resolveUiInsetsPx(): UiInsetsPx {
+  if (typeof window === "undefined") return { left: 0, right: 0, top: 0, bottom: 0 };
+
+  const isMobile = window.innerWidth <= HUD_MOBILE_BREAKPOINT_PX;
+  const top = useHudStore.getState().statusBarHeight ?? 0;
+
+  // Sidebar is always present on desktop; on mobile it can slide out.
+  const left = isMobile ? 0 : HUD_SIDEBAR_WIDTH + 16;
+
+  // Aircraft inspector only shows when an aircraft is selected (desktop).
+  const hasInspector = !isMobile && Boolean(useAircraftStore.getState().selectedId);
+  const right = hasInspector ? HUD_INSPECTOR_WIDTH + 24 : 0;
+
+  // Bottom-right layer controls + safe area.
+  const bottom = 96;
+
+  return { left, right, top, bottom };
+}
+
+/** Slight heading bias so the target lands near the HUD-visible center (not full canvas). */
+function airportFlyHeadingRad(viewer: Viewer): number {
+  const base = CesiumMath.toRadians(30);
+  if (typeof window === "undefined") return base;
+
+  const insets = resolveUiInsetsPx();
+  const rect = viewer.scene.canvas.getBoundingClientRect();
+  const usableW = Math.max(1, rect.width - insets.left - insets.right);
+  const bias = ((insets.left - insets.right) / usableW) * 0.4;
+  return base + bias;
+}
+
 export function flyToAirport(
   viewer: Viewer,
   airportId: string,
   onComplete?: () => void,
 ): void {
   const airport = getAirport(airportId);
-  smoothFly(
-    viewer.camera,
-    Cartesian3.fromDegrees(airport.lon - 0.06, airport.lat - 0.05, 2800),
+  const targetWorld = Cartesian3.fromDegrees(airport.lon, airport.lat, 0);
+  const rangeM = 3200;
+  const heading = airportFlyHeadingRad(viewer);
+  const pitch = CesiumMath.toRadians(-40);
+
+  releaseCameraLock(viewer.camera);
+  viewer.camera.flyToBoundingSphere(
+    new BoundingSphere(targetWorld, 120),
     {
-      heading: CesiumMath.toRadians(30),
-      pitch: CesiumMath.toRadians(-40),
-      roll: 0,
+      offset: new HeadingPitchRange(heading, pitch, rangeM),
+      duration: FLY_DURATION_S,
+      easingFunction: FLY_EASING,
+      complete: onComplete,
     },
-    onComplete,
   );
 }
 

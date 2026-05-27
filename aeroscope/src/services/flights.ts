@@ -11,16 +11,27 @@ import {
 import { MAX_VIEWPORT_AIRCRAFT } from "../config/trafficView";
 import {
   type CameraRect,
+  getRectCenter,
   isLatLonInCameraRect,
 } from "../utils/cameraBounds";
 
-function boundsToQuery(bounds: AirportBounds | FlightBounds): string {
-  const params = new URLSearchParams({
-    lamin: String(bounds.lamin),
-    lomin: String(bounds.lomin),
-    lamax: String(bounds.lamax),
-    lomax: String(bounds.lomax),
-  });
+function boundsToQuery(bounds: AirportBounds | FlightBounds | FlightBounds[]): string {
+  // Airport + legacy single-box flow
+  if (!Array.isArray(bounds)) {
+    const params = new URLSearchParams({
+      lamin: String(bounds.lamin),
+      lomin: String(bounds.lomin),
+      lamax: String(bounds.lamax),
+      lomax: String(bounds.lomax),
+    });
+    return params.toString();
+  }
+
+  // Multi-box flow (antimeridian split).
+  const params = new URLSearchParams();
+  for (const b of bounds) {
+    params.append("box", `${b.lamin},${b.lomin},${b.lamax},${b.lomax}`);
+  }
   return params.toString();
 }
 
@@ -90,9 +101,12 @@ function dtoToAircraftState(
 }
 
 async function fetchFlightsDto(
-  bounds: FlightBounds,
+  bounds: FlightBounds | FlightBounds[],
+  options?: { signal?: AbortSignal },
 ): Promise<AircraftDto[]> {
-  const res = await fetch(`/api/flights?${boundsToQuery(bounds)}`);
+  const res = await fetch(`/api/flights?${boundsToQuery(bounds)}`, {
+    signal: options?.signal,
+  });
 
   if (!res.ok) {
     if (res.status === 502 || res.status === 503 || res.status === 504) {
@@ -129,16 +143,17 @@ function sortByDistanceToCenter(
 }
 
 export async function fetchFlightsInBounds(
-  bounds: FlightBounds,
+  bounds: FlightBounds | FlightBounds[],
   scene: SceneReference,
   options?: {
     maxAircraft?: number;
     centerLat?: number;
     centerLon?: number;
     cameraRect?: CameraRect;
+    signal?: AbortSignal;
   },
 ): Promise<AircraftState[]> {
-  let dtos = await fetchFlightsDto(bounds);
+  let dtos = await fetchFlightsDto(bounds, { signal: options?.signal });
   if (dtos.length === 0) return [];
 
   const receivedAtMs = Date.now();
@@ -158,11 +173,19 @@ export async function fetchFlightsInBounds(
   }
 
   const max = options?.maxAircraft ?? MAX_VIEWPORT_AIRCRAFT;
-  const sorted = sortByDistanceToCenter(dtos, centerLat, centerLon);
-  const limited =
-    scene.mode === "viewport" && sorted.length <= max
-      ? sorted
-      : sorted.slice(0, max);
+  let limited = dtos;
+
+  if (scene.mode === "viewport" && dtos.length > max) {
+    const viewCenter =
+      options?.cameraRect != null
+        ? getRectCenter(options.cameraRect)
+        : { lat: centerLat, lon: centerLon };
+    limited = sortByDistanceToCenter(
+      dtos,
+      viewCenter.lat,
+      viewCenter.lon,
+    ).slice(0, max);
+  }
 
   const states = limited.map((dto) =>
     dtoToAircraftState(dto, scene, receivedAtMs),

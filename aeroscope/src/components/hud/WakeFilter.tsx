@@ -29,7 +29,13 @@ export function WakeFilter() {
   );
 
   return (
-    <HudPanel title="WAKE" titleIcon={MdFilterAlt} flexShrink={0}>
+    <HudPanel
+      panelId="wake-filter"
+      title="WAKE"
+      titleIcon={MdFilterAlt}
+      minimizedSummary={filter?.length ? `${filter.length} active` : "ALL"}
+      flexShrink={0}
+    >
       <div
         style={{
           padding: "0 12px 10px",

@@ -6,7 +6,15 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 10;
 
 export async function GET(request: NextRequest) {
-  const query = Object.fromEntries(request.nextUrl.searchParams.entries());
+  const params = request.nextUrl.searchParams;
+
+  // Multi-box support: `box=lamin,lomin,lamax,lomax` (repeatable)
+  const boxes = params.getAll("box");
+  const query =
+    boxes.length > 0
+      ? { box: boxes }
+      : Object.fromEntries(params.entries());
+
   const result = await searchFlightsInBounds(query);
 
   if (result.error) {

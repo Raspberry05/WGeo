@@ -1,3 +1,7 @@
+import {
+  passesAirportTypeFilter,
+  type AirportType,
+} from "../config/airportFilters";
 import { AIRPORTS_GLOBAL_URL, AIRPORTS_INDEX_URL } from "../config/dataPaths";
 import { boundsFromCenter } from "../utils/geoMath";
 import {
@@ -24,6 +28,8 @@ const RADIUS_BY_TYPE: Record<string, number> = {
   large_airport: 80,
   medium_airport: 50,
   small_airport: 35,
+  seaplane_base: 25,
+  heliport: 20,
 };
 
 let globalCatalog: AirportMapRecord[] = [];
@@ -132,9 +138,11 @@ export async function loadAirportCatalog(): Promise<void> {
   return loadPromise;
 }
 
-/** Large + medium airports for the always-on map layer. */
-export function getAirportRecordsForMap(): AirportMapRecord[] {
-  return globalCatalog;
+/** All airport types for the global map layer (filtered by HUD type). */
+export function getAirportRecordsForMap(
+  typeFilter: AirportType[] | null = null,
+): AirportMapRecord[] {
+  return globalCatalog.filter((r) => passesAirportTypeFilter(r.type, typeFilter));
 }
 
 export function getAirportRecords(): AirportRecord[] {
