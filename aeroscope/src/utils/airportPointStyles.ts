@@ -28,7 +28,7 @@ import {
 import {
   countAircraftNearAirport,
   getAirportMarkerDimensions,
-  useLooseAirportDistanceScale,
+  looseAirportDistanceScale,
 } from "./airportMarkerSize";
 import { getAirportMarkerImage } from "./airportMarkerImages";
 import {
@@ -59,7 +59,7 @@ function verticalOriginForType(type: string): VerticalOrigin {
 function scaleByDistanceForBillboard(isActive: boolean) {
   if (isActive) return AIRPORT_ACTIVE_SCALE;
   const filter = useAircraftStore.getState().airportTypeFilter;
-  return useLooseAirportDistanceScale(filter)
+  return looseAirportDistanceScale(filter)
     ? AIRPORT_POINT_SCALE_LOOSE
     : AIRPORT_POINT_SCALE;
 }

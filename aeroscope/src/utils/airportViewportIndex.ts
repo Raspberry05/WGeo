@@ -53,7 +53,7 @@ export function buildAirportViewportIndex(
       north: number,
       typeFilter: AirportType[] | null = null,
     ) {
-      const allowedViewport = new Set(enabledViewportTypes(typeFilter));
+      const allowedViewport = new Set(enabledViewportTypes());
       const minLatCell = Math.floor(south / AIRPORT_GRID_CELL_DEG);
       const maxLatCell = Math.floor(north / AIRPORT_GRID_CELL_DEG);
       const minLonCell = Math.floor(west / AIRPORT_GRID_CELL_DEG);

@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { MdAirplanemodeActive, MdLocalAirport } from "react-icons/md";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useHudStore } from "../../store/useHudStore";
 import { AircraftInspector } from "./AircraftInspector";
@@ -9,10 +10,12 @@ import { AirportHoverTooltip } from "./AirportHoverTooltip";
 import { AirportPicker } from "./AirportPicker";
 import { AirportTypeFilter } from "./AirportTypeFilter";
 import { ClassFilter } from "./ClassFilter";
-import { WakeFilter } from "./WakeFilter";
+import { HudGroup } from "./HudGroup";
+import { HudPanel } from "./HudPanel";
 import { MapLayerControls } from "./MapLayerControls";
 import { StatusBar } from "./StatusBar";
 import { TrafficViewToggle } from "./TrafficViewToggle";
+import { WakeFilter } from "./WakeFilter";
 import {
   HUD_MOBILE_MEDIA,
   HUD_PANEL_GAP,
@@ -78,7 +81,7 @@ function HudSidebar({
           style={{
             display: "flex",
             flexDirection: "column",
-            gap: HUD_PANEL_GAP,
+            gap: HUD_PANEL_GAP * 1.5,
             flex: 1,
             minHeight: 0,
             overflowY: "auto",
@@ -107,15 +110,27 @@ export function HUD() {
         drawerOpen={drawerOpen}
         topOffset={Math.max(statusBarHeight, HUD_STATUS_BAR_MIN_HEIGHT)}
       >
-        <AirportPicker isMobile={isMobile} />
-        <AirportTypeFilter />
-        <ClassFilter />
-        <WakeFilter />
-        <AircraftList />
+        <HudGroup title="AIRPORT" icon={MdLocalAirport}>
+          <AirportPicker isMobile={isMobile} />
+          <AirportTypeFilter />
+        </HudGroup>
+
+        <HudGroup title="AIRPLANE" icon={MdAirplanemodeActive}>
+          <HudPanel
+            panelId="traffic-view"
+            title="TRAFFIC"
+            titleIcon={MdAirplanemodeActive}
+            flexShrink={0}
+          >
+            <TrafficViewToggle variant="inline" />
+          </HudPanel>
+          <ClassFilter />
+          <WakeFilter />
+          <AircraftList />
+        </HudGroup>
       </HudSidebar>
       <AircraftInspector isMobile={isMobile} />
       <MapLayerControls />
-      {/* <TrafficViewToggle /> */}
       <AirportHoverTooltip />
     </>
   );

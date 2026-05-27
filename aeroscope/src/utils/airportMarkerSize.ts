@@ -163,7 +163,7 @@ export function getAirportMarkerDimensions(
 }
 
 /** Looser distance scaling when few airport types are shown (easier to spot). */
-export function useLooseAirportDistanceScale(filter: AirportType[] | null): boolean {
+export function looseAirportDistanceScale(filter: AirportType[] | null): boolean {
   const enabled = enabledTypes(filter);
   if (enabled.length <= 2) return true;
   if (enabled.every((t) => VIEWPORT_ONLY_TYPES.has(t))) return true;

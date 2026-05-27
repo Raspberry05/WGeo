@@ -55,7 +55,7 @@ export function useAirportViewportLayer({
       }
 
       if (!fullCatalogLoaded || !layer.points) return;
-      if (enabledViewportTypes(airportTypeFilter).length === 0) {
+      if (enabledViewportTypes().length === 0) {
         clearSmallAirportBillboards(layer);
         return;
       }
