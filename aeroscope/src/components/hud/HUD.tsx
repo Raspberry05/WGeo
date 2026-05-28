@@ -11,10 +11,8 @@ import { AirportPicker } from "./AirportPicker";
 import { AirportTypeFilter } from "./AirportTypeFilter";
 import { ClassFilter } from "./ClassFilter";
 import { HudGroup } from "./HudGroup";
-import { HudPanel } from "./HudPanel";
 import { MapLayerControls } from "./MapLayerControls";
 import { StatusBar } from "./StatusBar";
-import { TrafficViewToggle } from "./TrafficViewToggle";
 import { WakeFilter } from "./WakeFilter";
 import {
   HUD_MOBILE_MEDIA,
@@ -22,6 +20,7 @@ import {
   HUD_SIDEBAR_WIDTH,
   HUD_SIDEBAR_WIDTH_MOBILE,
   HUD_STATUS_BAR_MIN_HEIGHT,
+  hudSidebarStyle,
 } from "./hudTheme";
 
 function HudSidebar({
@@ -59,6 +58,7 @@ function HudSidebar({
       <div
         className="hud-sidebar"
         style={{
+          ...hudSidebarStyle,
           position: "absolute",
           top: topOffset,
           left: 0,
@@ -116,14 +116,6 @@ export function HUD() {
         </HudGroup>
 
         <HudGroup title="AIRPLANE" icon={MdAirplanemodeActive}>
-          <HudPanel
-            panelId="traffic-view"
-            title="TRAFFIC"
-            titleIcon={MdAirplanemodeActive}
-            flexShrink={0}
-          >
-            <TrafficViewToggle variant="inline" />
-          </HudPanel>
           <ClassFilter />
           <WakeFilter />
           <AircraftList />

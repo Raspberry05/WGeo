@@ -62,9 +62,10 @@ export function ClassFilter() {
       <div
         style={{
           padding: "0 12px 12px",
-          display: "flex",
-          flexWrap: "wrap",
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
           gap: "6px",
+          alignItems: "stretch",
         }}
       >
         {AIRCRAFT_CLASS_OPTIONS.map(({ code, label }) => {
@@ -75,7 +76,8 @@ export function ClassFilter() {
               type="button"
               onClick={() => toggle(code)}
               style={{
-                padding: "6px 10px",
+                width: "100%",
+                padding: "6px 8px",
                 borderRadius: "4px",
                 border: `1px solid ${on ? hudAccent : "#1a3a2a"}`,
                 background: on ? "rgba(0,255,136,0.12)" : "transparent",
@@ -83,6 +85,7 @@ export function ClassFilter() {
                 cursor: "pointer",
                 fontFamily: "inherit",
                 fontSize: HUD_FONT_SM,
+                textAlign: "left",
               }}
             >
               {label}

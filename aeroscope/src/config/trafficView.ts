@@ -43,5 +43,8 @@ export const VIEWPORT_POLL_VIEWER_RETRY_MS = 1500;
 /** Debounce camera moveEnd before refetching flights (ms). */
 export const VIEWPORT_POLL_DEBOUNCE_MS = 500;
 
-/** Enables camera-viewport traffic mode in the HUD. */
+/** Camera-viewport traffic: fetch flights for the visible map area. */
 export const AIRCRAFT_VIEWPORT_ENABLED = true;
+
+/** Sidebar / floating traffic mode toggle. Airport traffic stays on without this. */
+export const TRAFFIC_VIEW_HUD_ENABLED = false;

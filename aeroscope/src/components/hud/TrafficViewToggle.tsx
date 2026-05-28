@@ -3,7 +3,10 @@
 import { useEffect, type ReactNode } from "react";
 import { MdAirplanemodeActive, MdLocalAirport } from "react-icons/md";
 import { useAircraftStore, type TrafficViewMode } from "@/store/useAircraftStore";
-import { AIRCRAFT_VIEWPORT_ENABLED } from "@/config/trafficView";
+import {
+  AIRCRAFT_VIEWPORT_ENABLED,
+  TRAFFIC_VIEW_HUD_ENABLED,
+} from "@/config/trafficView";
 import { HudIcon } from "./HudIcon";
 import {
   hexWithAlpha,
@@ -74,7 +77,10 @@ export function TrafficViewToggle({
 
   useEffect(() => {
     if (!AIRCRAFT_VIEWPORT_ENABLED && mode === "aircraft") setTrafficViewMode("airport");
+    if (!TRAFFIC_VIEW_HUD_ENABLED && mode === "aircraft") setTrafficViewMode("airport");
   }, [mode, setTrafficViewMode]);
+
+  if (!TRAFFIC_VIEW_HUD_ENABLED) return null;
 
   const iconColor = (active: boolean) => (active ? hudAccent : hudMuted);
 

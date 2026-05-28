@@ -3,7 +3,6 @@ import { create } from "zustand";
 export type HudPanelId =
   | "airport-picker"
   | "airport-type-filter"
-  | "traffic-view"
   | "class-filter"
   | "wake-filter"
   | "aircraft-list"

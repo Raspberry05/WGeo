@@ -3,6 +3,7 @@ import {
   DEFAULT_AIRPORT_TYPE_FILTER,
   type AirportType,
 } from "@/config/airportFilters";
+import { AIRCRAFT_VIEWPORT_ENABLED } from "@/config/trafficView";
 import { DEFAULT_AIRPORT_ID } from "../data/airports";
 import type { FlightDetailDto } from "../lib/aeroapi/types";
 import type { AircraftClass, WakeTurbulenceCategory } from "@/domain/aircraft/openAircraftType";
@@ -178,9 +179,11 @@ export const useAircraftStore = create<AircraftStore>((set) => ({
     }),
   setTrafficViewMode: (mode) =>
     set((state) => {
-      if (mode === state.trafficViewMode) return state;
+      const resolved =
+        mode === "aircraft" && !AIRCRAFT_VIEWPORT_ENABLED ? "airport" : mode;
+      if (resolved === state.trafficViewMode) return state;
       return {
-        trafficViewMode: mode,
+        trafficViewMode: resolved,
         aircraft: {},
         selectedId: null,
         cameraMode: "free",

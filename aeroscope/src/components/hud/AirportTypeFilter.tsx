@@ -65,7 +65,7 @@ export function AirportTypeFilter() {
   return (
     <HudPanel
       panelId="airport-type-filter"
-      title="AIRPORTS"
+      title="FILTER"
       titleIcon={MdLocalAirport}
       minimizedSummary={filterSummary(filter)}
       flexShrink={0}

@@ -1,5 +1,8 @@
 import { useEffect, useRef } from "react";
-import { VIEWPORT_POLL_DEBOUNCE_MS } from "@/config/trafficView";
+import {
+  AIRCRAFT_VIEWPORT_ENABLED,
+  VIEWPORT_POLL_DEBOUNCE_MS,
+} from "@/config/trafficView";
 import { requestAircraftPoll } from "@/systems/aircraftSystem";
 import { useAircraftStore } from "@/store/useAircraftStore";
 import { useCesiumStore } from "@/store/useCesiumStore";
@@ -15,6 +18,7 @@ export function useViewportFlightPoll(): void {
   const viewModeToken = useAircraftStore((s) => s.viewModeToken);
 
   useEffect(() => {
+    if (!AIRCRAFT_VIEWPORT_ENABLED) return;
     if (trafficViewMode === "aircraft" && viewer) {
       requestAircraftPoll();
     }
@@ -23,7 +27,9 @@ export function useViewportFlightPoll(): void {
   const lastChunkKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!viewer || trafficViewMode !== "aircraft") return;
+    if (!AIRCRAFT_VIEWPORT_ENABLED || !viewer || trafficViewMode !== "aircraft") {
+      return;
+    }
 
     lastChunkKeyRef.current = null;
 

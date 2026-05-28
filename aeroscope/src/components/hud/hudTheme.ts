@@ -7,8 +7,8 @@ export const HUD_MOBILE_MEDIA = `(max-width: ${HUD_MOBILE_BREAKPOINT_PX}px)`;
 export const HUD_STATUS_BAR_COMPACT_BREAKPOINT_PX = 1100;
 export const HUD_STATUS_BAR_COMPACT_MEDIA = `(max-width: ${HUD_STATUS_BAR_COMPACT_BREAKPOINT_PX}px)`;
 
-export const HUD_SIDEBAR_WIDTH = 280;
-export const HUD_SIDEBAR_WIDTH_MOBILE = 280;
+export const HUD_SIDEBAR_WIDTH = 320;
+export const HUD_SIDEBAR_WIDTH_MOBILE = 300;
 export const HUD_STATUS_BAR_MIN_HEIGHT = 52;
 export const HUD_PANEL_GAP = 12;
 export const HUD_FONT_SM = 13;
@@ -22,6 +22,14 @@ export const hudPanelStyle: CSSProperties = {
   background: "rgba(0,8,16,0.92)",
   border: "1px solid #1a3a2a",
   borderRadius: "6px",
+  fontFamily: "monospace",
+};
+
+/** Full-height left sidebar shell (behind grouped panels). */
+export const hudSidebarStyle: CSSProperties = {
+  background: "rgba(0, 8, 16, 0.94)",
+  borderRight: "1px solid #1a3a2a",
+  boxShadow: "4px 0 20px rgba(0, 0, 0, 0.4)",
   fontFamily: "monospace",
 };
 

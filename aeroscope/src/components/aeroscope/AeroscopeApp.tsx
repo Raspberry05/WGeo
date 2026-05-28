@@ -11,6 +11,7 @@ import { TilesetLayerManager } from "@/components/cesium/TilesetLayerManager";
 import { ScenePickHandler } from "@/components/cesium/ScenePickHandler";
 import { HUD } from "@/components/hud/HUD";
 import { useAircraftSystemLifecycle } from "@/hooks/useAircraftSystemLifecycle";
+import { useTrafficViewBootstrap } from "@/hooks/useTrafficViewBootstrap";
 import { useViewportFlightPoll } from "@/hooks/useViewportFlightPoll";
 import { useAirportCatalogBootstrap } from "@/hooks/useAirportCatalogBootstrap";
 import { useBootPhase } from "@/hooks/useBootPhase";
@@ -24,6 +25,7 @@ const CesiumViewer = lazy(() =>
 export default function AeroscopeApp() {
   const { catalogReady, catalogError } = useAirportCatalogBootstrap();
   const { phase: bootPhase, message: bootMessage } = useBootPhase(catalogError);
+  useTrafficViewBootstrap();
   useAircraftSystemLifecycle(catalogReady);
   useViewportFlightPoll();
 

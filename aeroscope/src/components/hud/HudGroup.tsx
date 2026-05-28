@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { IconType } from "react-icons";
 import { HudIcon } from "./HudIcon";
-import { hudMuted, HUD_FONT_SM, HUD_PANEL_GAP } from "./hudTheme";
+import { hudAccent, HUD_FONT_SM, HUD_PANEL_GAP } from "./hudTheme";
 
 export interface HudGroupProps {
   title: string;
@@ -19,6 +19,10 @@ export function HudGroup({ title, icon, children }: HudGroupProps) {
         flexDirection: "column",
         gap: HUD_PANEL_GAP,
         flexShrink: 0,
+        padding: "10px 8px",
+        borderRadius: "6px",
+        background: "rgba(0, 20, 32, 0.55)",
+        border: "1px solid #143028",
       }}
     >
       <div
@@ -26,15 +30,18 @@ export function HudGroup({ title, icon, children }: HudGroupProps) {
           display: "flex",
           alignItems: "center",
           gap: "8px",
-          padding: "0 2px",
-          color: hudMuted,
+          padding: "4px 4px 2px",
+          color: hudAccent,
           fontFamily: "monospace",
           fontSize: HUD_FONT_SM,
           letterSpacing: "2px",
-          fontWeight: 600,
+          fontWeight: 700,
+          borderBottom: "1px solid #1a3a2a",
+          paddingBottom: "8px",
+          marginBottom: "2px",
         }}
       >
-        {icon && <HudIcon icon={icon} size={15} muted />}
+        {icon && <HudIcon icon={icon} size={16} color={hudAccent} />}
         <span>{title}</span>
       </div>
       <div

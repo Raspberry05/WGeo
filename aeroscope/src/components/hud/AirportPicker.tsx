@@ -42,7 +42,7 @@ export function AirportPicker({ isMobile = false }: AirportPickerProps) {
   return (
     <HudPanel
       panelId="airport-picker"
-      title="AIRPORTS"
+      title="FINDER"
       titleIcon={MdLocalAirport}
       minimizedSummary={activeAirportId}
       maxHeight={isMobile ? "min(34dvh, 250px)" : "min(34vh, 300px)"}
